@@ -1,0 +1,35 @@
+{
+	"name": "@leawind/tuzk",
+	"version": "0.1.0",
+	"license": "GPLv3",
+	"exports": "./src/index.ts",
+	"tasks": {
+		"dev": "deno test --watch --parallel",
+		"prepare": "deno fmt && deno lint && deno test -A"
+	},
+	"test": {
+		"include": [
+			"test/**/*.test.ts"
+		]
+	},
+	"imports": {
+		"@leawind/delegate": "jsr:@leawind/delegate@^0.4.0",
+		"@std": "jsr:@std",
+		"@/": "./src/"
+	},
+	"fmt": {
+		"useTabs": true,
+		"lineWidth": 120,
+		"indentWidth": 4,
+		"semiColons": true,
+		"singleQuote": true,
+		"proseWrap": "preserve",
+		"include": [
+			"README.md",
+			"deno.jsonc",
+			"src/",
+			"test/"
+		],
+		"exclude": []
+	}
+}
