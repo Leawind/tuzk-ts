@@ -49,29 +49,14 @@ export enum TuzkState {
  *
  * If you never invoke it, the task can not be paused or canceled during running
  */
-export type TuzkRunner<T> = (checkPoint: TuzkCheckPoint, tuzk: Tuzk<T>) => PromiseLike<T>;
-
-/**
- * Invoke and await this in a task.
- *
- * If the task is marked as canceled by {@link Tuzk.cancel}, it throws a {@link TuzkCanceledError}.
- *
- * If the task is marked as paused by {@link Tuzk.pause}, it does not `resolve` until {@link Tuzk.resume} is called.
- *
- * @param progress Progress to set.
- * @throws {TuzkError} If progress is not in range [0.0, 1.0].
- * @throws {TuzkCanceledError} If this task is marked as canceled.
- *
- * @see Tuzk.checkPoint
- */
-export type TuzkCheckPoint = (progress?: number) => Promise<void>;
+export type TuzkRunner<T> = (tuzk: Tuzk<T>) => PromiseLike<T>;
 
 /**
  * Can be converted to a Tuzk using {@link Tuzk.from}
  */
 export type TuzkLike<T> = Tuzk<T> | TuzkRunner<T>;
 
-export type PromiseAction = {
+type PromiseAction = {
 	resolve: (value: void | PromiseLike<void>) => void;
 	reject: (reason?: unknown) => void;
 };
@@ -272,9 +257,23 @@ export class Tuzk<T> {
 	/////////////////////////////////////////////////////////////////
 
 	/**
-	 * @see TuzkCheckPoint
+	 * Invoke and await this in a task runner.
+	 *
+	 * If the task is marked as canceled by {@link Tuzk.cancel}, it throws a {@link TuzkCanceledError}.
+	 *
+	 * If the task is marked as paused by {@link Tuzk.pause}, it does not `resolve` until {@link Tuzk.resume} is called.
+	 *
+	 * @param progress Progress to set.
+	 *
+	 * @throws {TuzkInvalidActionError} If invoked when the task is not running.
+	 * @throws {TuzkError} If progress is not in range [0.0, 1.0].
+	 * @throws {TuzkCanceledError} If this task is marked as canceled.
 	 */
-	protected checkPoint(progress?: number): Promise<void> {
+	public checkPoint(progress?: number): Promise<void> {
+		if (!this.isRunning()) {
+			throw new TuzkInvalidActionError(`Tuzk can only checkPoint during running`);
+		}
+
 		return new Promise((resolve, reject) => {
 			// Update progress
 			if (progress !== undefined) {
@@ -354,7 +353,7 @@ export class Tuzk<T> {
 
 			// Wait for runner to finish
 			await this.checkPoint(0);
-			this.result = await this.runner(this.checkPoint.bind(this), this);
+			this.result = await this.runner(this);
 			this.setProgress(1);
 
 			this.setState(TuzkState.Success);

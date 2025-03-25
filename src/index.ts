@@ -1,4 +1,4 @@
-export { NestedTuzk, Tuzk, type TuzkCheckPoint, type TuzkLike, type TuzkRunner, TuzkState } from '@/tuzk/index.ts';
+export { NestedTuzk, Tuzk, type TuzkLike, type TuzkRunner, TuzkState } from '@/tuzk/index.ts';
 export {
 	TuzkCanceledError,
 	TuzkDependencyFailedError,
