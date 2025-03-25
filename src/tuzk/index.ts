@@ -8,6 +8,9 @@ import {
 	TuzkNeverError,
 } from '@/tuzk/error.ts';
 
+/**
+ * The state of a Tuzk task.
+ */
 export enum TuzkState {
 	/**
 	 * Not started yet
@@ -64,7 +67,7 @@ export type TuzkRunner<T> = (checkPoint: TuzkCheckPoint, tuzk: Tuzk<T>) => Promi
 export type TuzkCheckPoint = (progress?: number) => Promise<void>;
 
 /**
- * Can be converted to a Tuzk using Tuzk.from()
+ * Can be converted to a Tuzk using {@link Tuzk.from}
  */
 export type TuzkLike<T> = Tuzk<T> | TuzkRunner<T>;
 
@@ -74,7 +77,19 @@ export type PromiseAction = {
 };
 
 /**
- * A task that can be started, paused, resumed, canceled.
+ * Tuzk is task that can be started, paused, resumed, canceled.
+ *
+ * ## Dependencies
+ *
+ * You can also add dependencies to it, and it will only start when all of its dependencies are finished.
+ *
+ * If any dependency is failed or canceled, this task will be failed.
+ *
+ * ## progress
+ *
+ * In the runner, you can use {@link checkPoint} or {@link setProgress} to update the progress.
+ *
+ * You can use {@link Tuzk.onProgressUpdated} to listen to the progress change.
  */
 export class Tuzk<T> {
 	private readonly runner: TuzkRunner<T>;
@@ -113,7 +128,7 @@ export class Tuzk<T> {
 	 *
 	 * If any dependency is failed or canceled, this task will be failed.
 	 */
-	private dependenciesMap: Map<Tuzk<unknown>, DelegateListener<TuzkState>> = new Map();
+	private readonly dependenciesMap: Map<Tuzk<unknown>, DelegateListener<TuzkState>> = new Map();
 
 	// Delegates
 	public readonly onProgressUpdated: Delegate<number> = new Delegate<number>();
@@ -328,8 +343,8 @@ export class Tuzk<T> {
 			throw new TuzkInvalidActionError(`Tuzk can not started again during running`);
 		}
 
-		// Wait for dependencies to finish
 		try {
+			// Wait for dependencies to finish
 			await new Promise((resolve, reject) => {
 				this.waitForDependenciesPromiseAction = { resolve, reject };
 				this.checkDependencies(this.waitForDependenciesPromiseAction);
@@ -343,6 +358,7 @@ export class Tuzk<T> {
 			this.setProgress(1);
 
 			this.setState(TuzkState.Success);
+
 			return this.result;
 		} catch (error: unknown) {
 			this.error = error;
@@ -462,8 +478,10 @@ export class Tuzk<T> {
 	}
 
 	/**
-	 * @param value A Tuzk instance or a TuzkRunner function.
-	 * @returns A Tuzk instance.
+	 * Create a Tuzk instance from a TuzkRunner function.
+	 *
+	 * If the given value is a TuzkRunner function, a new Tuzk instance will be created and returned.
+	 * If the given value is a Tuzk instance, it will be returned as is.
 	 */
 	public static from<T>(value: TuzkLike<T>): Tuzk<T> {
 		if (value instanceof Tuzk) {

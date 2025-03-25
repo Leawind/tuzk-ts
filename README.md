@@ -5,7 +5,7 @@
 [![deno score](https://jsr.io/badges/@leawind/tuzk/score)](https://jsr.io/@leawind/tuzk/doc)
 [![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/Leawind/tuzk-ts/deno-test.yaml?branch=main&logo=github-actions&label=test)](https://github.com/Leawind/tuzk-ts/actions/workflows/deno-test.yaml)
 
-Tuzk is a library for managing asynchronous tasks that can be started, paused, resumed, and canceled. It provides a flexible and powerful way to handle complex task workflows with dependencies.
+Tuzk is a library for managing asynchronous tasks with support for dependencies and progress tracking.
 
 ## Features
 
