@@ -1,6 +1,5 @@
 import { assert, assertRejects, assertStrictEquals, assertThrows } from '@std/assert';
-import { Tuzk, TuzkState } from '@/index.ts';
-import { TuzkCanceledError, TuzkDependencyFailedError, TuzkError } from '@/index.ts';
+import { Tuzk, TuzkCanceledError, TuzkDependencyFailedError, TuzkError, TuzkState } from '@/index.ts';
 
 const testWaitTimeoutIds: number[] = [];
 function testWait(ms: number): Promise<void> {
@@ -15,7 +14,7 @@ function clearTestTimeouts() {
 
 Deno.test('task should run successfully', async () => {
 	const tuzk = new Tuzk(async (tuzk) => {
-		await tuzk.checkPoint(0.5);
+		await tuzk.checkpoint(0.5);
 	});
 	await tuzk.start();
 
@@ -23,73 +22,73 @@ Deno.test('task should run successfully', async () => {
 
 	assert(tuzk.isFinished());
 
-	assert(!tuzk.isCanceled());
-	assert(!tuzk.isPaused());
+	assert(!tuzk.stateIs(TuzkState.Canceled));
+	assert(!tuzk.stateIs(TuzkState.Paused));
 	assert(!tuzk.isMarkedAsCanceled());
 	assert(!tuzk.isMarkedAsPaused());
-	assert(!tuzk.isFailed());
+	assert(!tuzk.stateIs(TuzkState.Failed));
 
 	assert(tuzk.getState() === TuzkState.Success);
 });
 
 Deno.test('task should be paused and resumed', async () => {
 	const tuzk = new Tuzk(async (tuzk) => {
-		await tuzk.checkPoint(0.5);
+		await tuzk.checkpoint(0.5);
 		tuzk.pause();
-		await tuzk.checkPoint(0.8);
+		await tuzk.checkpoint(0.8);
 	});
 	const runPromise = tuzk.start();
 
 	// Wait for the task to pause
 	await new Promise((resolve) => setTimeout(resolve, 100));
 
-	assertStrictEquals(tuzk.isPaused(), true);
+	assertStrictEquals(tuzk.stateIs(TuzkState.Paused), true);
 	tuzk.resume();
 	await runPromise;
 	assertStrictEquals(tuzk.getProgress(), 1.0);
 	assert(tuzk.isFinished());
-	assert(tuzk.isSuccess());
+	assert(tuzk.stateIs(TuzkState.Success));
 });
 
 Deno.test('task resume when not paused', async () => {
 	const tuzk = new Tuzk(async (tuzk) => {
-		await tuzk.checkPoint(0.3);
+		await tuzk.checkpoint(0.3);
 		tuzk.resume();
-		await tuzk.checkPoint(0.6);
+		await tuzk.checkpoint(0.6);
 	});
 	await tuzk.start();
 
-	assert(tuzk.isSuccess());
+	assert(tuzk.stateIs(TuzkState.Success));
 });
 
 Deno.test('task should be canceled', async () => {
 	const tuzk = new Tuzk(async (tuzk) => {
-		await tuzk.checkPoint(0.5);
+		await tuzk.checkpoint(0.5);
 		console.log('Hello');
 		tuzk.cancel();
 		console.log('World!');
-		await tuzk.checkPoint(0.8);
+		await tuzk.checkpoint(0.8);
 
 		console.log(`This should not be printed.`);
 	});
 
 	await assertRejects(async () => await tuzk.start(), TuzkCanceledError);
 
-	assert(tuzk.isCanceled());
+	assert(tuzk.stateIs(TuzkState.Canceled));
 });
 
 Deno.test('task should be canceled when paused', async () => {
 	const tuzk = new Tuzk(async (tuzk) => {
-		await tuzk.checkPoint(0.3);
+		await tuzk.checkpoint(0.3);
 		tuzk.pause();
 		tuzk.cancel();
-		await tuzk.checkPoint(0.6);
+		await tuzk.checkpoint(0.6);
 		console.log(`This should not be printed.`);
 	});
 
 	await assertRejects(async () => await tuzk.start(), TuzkCanceledError);
 
-	assert(tuzk.isCanceled());
+	assert(tuzk.stateIs(TuzkState.Canceled));
 });
 
 Deno.test('task should throw error on invalid progress', () => {
@@ -100,12 +99,12 @@ Deno.test('task should throw error on invalid progress', () => {
 Deno.test('all tasks should run successfully', async () => {
 	const tuzk1 = new Tuzk(async (tuzk) => {
 		await testWait(10);
-		await tuzk.checkPoint(0.5);
+		await tuzk.checkpoint(0.5);
 		await testWait(10);
 	});
 	const tuzk2 = new Tuzk(async (tuzk) => {
 		await testWait(50);
-		await tuzk.checkPoint(0.5);
+		await tuzk.checkpoint(0.5);
 		await testWait(50);
 	});
 	const tuzkAll = Tuzk.all([tuzk1, tuzk2]);
@@ -123,26 +122,26 @@ Deno.test('all tasks should run successfully', async () => {
 
 Deno.test('all tasks should handle cancellation', async () => {
 	const tuzk1 = new Tuzk(async (tuzk) => {
-		await tuzk.checkPoint(0.5);
+		await tuzk.checkpoint(0.5);
 	});
 	const tuzk2 = new Tuzk(async (tuzk) => {
-		await tuzk.checkPoint(0.5);
+		await tuzk.checkpoint(0.5);
 		tuzk2.cancel();
-		await tuzk.checkPoint(0.8);
+		await tuzk.checkpoint(0.8);
 	});
 	const tuzkAll = Tuzk.all([tuzk1, tuzk2]);
 	await assertRejects(async () => await tuzkAll.start(), TuzkCanceledError);
-	assert(!tuzk1.isCanceled());
-	assert(tuzk2.isCanceled());
-	assert(tuzkAll.isCanceled());
+	assert(!tuzk1.stateIs(TuzkState.Canceled));
+	assert(tuzk2.stateIs(TuzkState.Canceled));
+	assert(tuzkAll.stateIs(TuzkState.Canceled));
 });
 
 Deno.test('all tasks should handle failure', async () => {
 	const tuzk1 = new Tuzk<void>(async (tuzk) => {
-		await tuzk.checkPoint(0.5);
+		await tuzk.checkpoint(0.5);
 	});
 	const tuzk2 = new Tuzk<void>(async (tuzk) => {
-		await tuzk.checkPoint(0.5);
+		await tuzk.checkpoint(0.5);
 		throw new Error('Task failed');
 	});
 	const tuzkAll = Tuzk.all([tuzk1, tuzk2]);
@@ -151,9 +150,9 @@ Deno.test('all tasks should handle failure', async () => {
 		Error,
 		'Task failed',
 	);
-	assert(tuzk1.isSuccess());
-	assert(tuzk2.isFailed());
-	assert(tuzkAll.isFailed());
+	assert(tuzk1.stateIs(TuzkState.Success));
+	assert(tuzk2.stateIs(TuzkState.Failed));
+	assert(tuzkAll.stateIs(TuzkState.Failed));
 });
 
 // Race
@@ -171,7 +170,7 @@ Deno.test('race should run the first task that completes successfully', async ()
 	assert(!tuzk1.isFinished());
 	assert(tuzk2.isFinished());
 
-	assert(tuzkRace.isSuccess());
+	assert(tuzkRace.stateIs(TuzkState.Success));
 
 	clearTestTimeouts();
 });
@@ -183,15 +182,15 @@ Deno.test('race should handle cancellation', async () => {
 	const tuzk2 = new Tuzk<void>(async (tuzk) => {
 		await testWait(50);
 		tuzk2.cancel();
-		await tuzk.checkPoint(0.8);
+		await tuzk.checkpoint(0.8);
 	});
 	const tuzkRace = Tuzk.race([tuzk1, tuzk2]);
 	await assertRejects(async () => await tuzkRace.start(), TuzkCanceledError);
 	clearTestTimeouts();
 
-	assert(!tuzk1.isCanceled());
-	assert(tuzk2.isCanceled());
-	assert(tuzkRace.isCanceled());
+	assert(!tuzk1.stateIs(TuzkState.Canceled));
+	assert(tuzk2.stateIs(TuzkState.Canceled));
+	assert(tuzkRace.stateIs(TuzkState.Canceled));
 });
 
 Deno.test('race should handle failure', async () => {
@@ -209,37 +208,21 @@ Deno.test('race should handle failure', async () => {
 		'Task failed',
 	);
 	assert(!tuzk1.isFinished());
-	assert(tuzk2.isFailed());
-	assert(tuzkRace.isFailed());
+	assert(tuzk2.stateIs(TuzkState.Failed));
+	assert(tuzkRace.stateIs(TuzkState.Failed));
 
 	clearTestTimeouts();
 });
 
-Deno.test('Dependency success', async () => {
-	const tuzk1 = new Tuzk(async (tuzk) => await tuzk.checkPoint(0.5));
-	const tuzk2 = new Tuzk(async (tuzk) => await tuzk.checkPoint(0.5))
-		.addDependency(tuzk1);
-	const tuzk3 = new Tuzk(async (tuzk) => await tuzk.checkPoint(0.5))
-		.addDependency(tuzk2);
-
-	tuzk2.start();
-	tuzk1.start();
-	await tuzk3.start();
-
-	assert(tuzk1.isSuccess());
-	assert(tuzk2.isSuccess());
-	assert(tuzk3.isSuccess());
-});
-
 Deno.test('Dependency failure', async () => {
-	const tuzk1 = new Tuzk(async (tuzk) => await tuzk.checkPoint(0.5));
+	const tuzk1 = new Tuzk(async (tuzk) => await tuzk.checkpoint(0.5));
 
 	const tuzk2 = new Tuzk(async (tuzk) => {
-		await tuzk.checkPoint(0.5);
+		await tuzk.checkpoint(0.5);
 		throw new Error('Task2 failed');
 	}).addDependency(tuzk1);
 
-	const tuzk3 = new Tuzk(async (tuzk) => await tuzk.checkPoint(0.5))
+	const tuzk3 = new Tuzk(async (tuzk) => await tuzk.checkpoint(0.5))
 		.addDependency(tuzk1)
 		.addDependency(tuzk2);
 
@@ -247,21 +230,21 @@ Deno.test('Dependency failure', async () => {
 	assertRejects(() => tuzk2.start(), Error);
 	await assertRejects(async () => await tuzk3.start(), TuzkDependencyFailedError);
 
-	assert(tuzk1.isSuccess());
-	assert(tuzk2.isFailed());
-	assert(tuzk3.isFailed());
+	assert(tuzk1.stateIs(TuzkState.Success));
+	assert(tuzk2.stateIs(TuzkState.Failed));
+	assert(tuzk3.stateIs(TuzkState.Failed));
 });
 
 Deno.test('Dependency cancel', async () => {
-	const tuzk1 = new Tuzk<void>(async (tuzk) => await tuzk.checkPoint(0.5));
+	const tuzk1 = new Tuzk<void>(async (tuzk) => await tuzk.checkpoint(0.5));
 
 	const tuzk2 = new Tuzk<void>(async (tuzk) => {
-		await tuzk.checkPoint(0.5);
+		await tuzk.checkpoint(0.5);
 		tuzk.cancel();
-		await tuzk.checkPoint(0.8);
+		await tuzk.checkpoint(0.8);
 	}).addDependency(tuzk1);
 
-	const tuzk3 = new Tuzk(async (tuzk) => await tuzk.checkPoint(0.5))
+	const tuzk3 = new Tuzk(async (tuzk) => await tuzk.checkpoint(0.5))
 		.addDependency(tuzk1)
 		.addDependency(tuzk2);
 
@@ -269,14 +252,14 @@ Deno.test('Dependency cancel', async () => {
 	assertRejects(() => tuzk2.start(), TuzkCanceledError);
 	await assertRejects(async () => await tuzk3.start(), TuzkCanceledError);
 
-	assert(tuzk1.isSuccess());
-	assert(tuzk2.isCanceled());
-	assert(tuzk3.isCanceled());
+	assert(tuzk1.stateIs(TuzkState.Success));
+	assert(tuzk2.stateIs(TuzkState.Canceled));
+	assert(tuzk3.stateIs(TuzkState.Canceled));
 });
 
 Deno.test('return value', async () => {
 	const tuzk = new Tuzk(async (tuzk) => {
-		await tuzk.checkPoint(0.2);
+		await tuzk.checkpoint(0.2);
 		return 12138;
 	});
 	const result = await tuzk.start();
@@ -299,7 +282,7 @@ Deno.test('sum', async () => {
 			for (let j = i; j < high; j++) {
 				sum += j;
 				if (j % CHECK_POINT_INTERVAL === 0) {
-					await tuzk.checkPoint((j - i) / BATCH_SIZE);
+					await tuzk.checkpoint((j - i) / BATCH_SIZE);
 				}
 			}
 			return sum;

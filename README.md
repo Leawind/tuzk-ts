@@ -16,31 +16,66 @@ Tuzk is a library for managing asynchronous tasks with support for dependencies 
 
 ## Usage
 
-Here is a basic example of how to use Tuzk:
+Here are some simple examples of how to use Tuzk:
+
+### Basic Task
 
 ```typescript
 import { Tuzk, TuzkState } from '@leawind/tuzk';
 
-const task = new Tuzk(async (checkPoint) => {
-	for (let i = 0; i <= 100; i++) {
-		await checkPoint(i / 100);
-		// Simulate some work
-		await new Promise((resolve) => setTimeout(resolve, 20));
+const task = new Tuzk<number>(async (tuzk) => {
+	let sum = 0;
+	for (let i = 1; i <= 100; i++) {
+		sum += i;
+		await tuzk.checkpoint(i / 100);
 	}
-	return 'Task Completed';
+	return sum;
 });
 
-task.onProgressUpdated.addListener((progress) => {
-	console.log(`Progress: ${progress * 100}%`);
-});
+assert(task.getState() === TuzkState.Pending);
+const result = await task.start();
+assert(task.getState() === TuzkState.Success);
 
-task.onStateUpdated.addListener((state) => {
-	console.log(`State: ${TuzkState[state]}`);
-});
+assert(result === 5050);
+```
 
-task.start()
-	.then((result) => console.log(result))
-	.catch((error) => console.error(error));
+### Task with Dependency
+
+```typescript
+import { Tuzk, TuzkState } from '@leawind/tuzk';
+
+const tuzk1: Tuzk<void> = new Tuzk(async (tuzk) => await tuzk.checkpoint(0.5));
+const tuzk2: Tuzk<void> = new Tuzk(async (tuzk) => await tuzk.checkpoint(0.5));
+
+tuzk2.addDependency(tuzk1);
+
+tuzk1.start(); // You need to manually start the dependency
+await tuzk2.start();
+
+assert(tuzk1.stateIs(TuzkState.Success));
+assert(tuzk2.stateIs(TuzkState.Success));
+```
+
+### Combine all tasks
+
+```typescript
+import { Tuzk, TuzkState } from '@leawind/tuzk';
+
+const tuzks: Tuzk<void>[] = [
+	new Tuzk(async (tuzk) => await tuzk.checkpoint(0.5)),
+	new Tuzk(async (tuzk) => await tuzk.checkpoint(0.5)),
+];
+
+const tuzkAll = Tuzk.all(tuzks);
+
+// It auto starts all subtasks
+await tuzkAll.start();
+// It only succeeds when all subtasks succeed
+
+assert(tuzks[0].stateIs(TuzkState.Success));
+assert(tuzks[1].stateIs(TuzkState.Success));
+
+assert(tuzkAll.stateIs(TuzkState.Success));
 ```
 
 ## Task State Diagram
