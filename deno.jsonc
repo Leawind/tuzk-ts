@@ -5,11 +5,17 @@
 	"exports": "./src/index.ts",
 	"tasks": {
 		"dev": "deno test --watch --parallel",
-		"prepare": "deno fmt && deno lint && deno test -A"
+		"test": "deno test --parallel",
+		"prepare": "deno fmt && deno lint && deno test --parallel"
 	},
 	"test": {
 		"include": [
 			"test/**/*.test.ts"
+		]
+	},
+	"publish": {
+		"exclude": [
+			"test/"
 		]
 	},
 	"imports": {
