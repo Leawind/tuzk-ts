@@ -1,12 +1,6 @@
 import { Delegate, type DelegateListener } from '@leawind/delegate';
 
-import {
-	TuzkCanceledError,
-	TuzkDependencyFailedError,
-	TuzkError,
-	TuzkInvalidActionError,
-	TuzkNeverError,
-} from '@/tuzk/error.ts';
+import { CanceledError, DependencyFailedError, InvalidActionError, NeverError, TuzkError } from '@/tuzk/error.ts';
 
 /**
  * The state of a Tuzk task.
@@ -169,7 +163,7 @@ export class Tuzk<T> {
 	 *
 	 * @returns The result of the task, or `undefined` if the task has not finished yet.
 	 */
-	getResult(): T | undefined {
+	public getResult(): T | undefined {
 		return this.result;
 	}
 
@@ -265,20 +259,20 @@ export class Tuzk<T> {
 	 *
 	 * - Update the progress
 	 * - Check if the task should be paused or canceled
-	 *     - If the task is marked as canceled by {@link Tuzk.cancel}, it throws a {@link TuzkCanceledError}.
+	 *     - If the task is marked as canceled by {@link Tuzk.cancel}, it throws a {@link CanceledError}.
 	 *     - If the task is marked as paused by {@link Tuzk.pause}, it won't resolve until {@link Tuzk.resume} is called.
 	 *
 	 * Always invoke and await this method in a task runner.
 	 *
 	 * @param progress Progress to set.
 	 *
-	 * @throws {TuzkInvalidActionError} If the task is not running.
+	 * @throws {InvalidActionError} If the task is not running.
 	 * @throws {TuzkError} If progress is not in range [0.0, 1.0].
-	 * @throws {TuzkCanceledError} If this task is marked as canceled.
+	 * @throws {CanceledError} If this task is marked as canceled.
 	 */
 	public checkpoint(progress?: number): Promise<void> {
 		if (!this.stateIs(TuzkState.Running)) {
-			throw new TuzkInvalidActionError(`Tuzk can invoke checkpoint only during running`);
+			throw new InvalidActionError(`Tuzk can invoke checkpoint only during running`);
 		}
 
 		return new Promise((resolve, reject) => {
@@ -293,7 +287,7 @@ export class Tuzk<T> {
 			if (this.shouldCancel) {
 				this.setState(TuzkState.Canceled);
 				// If do not reject or resolve, the Promise will stay in memory forever.
-				reject(new TuzkCanceledError());
+				reject(new CanceledError());
 			} else {
 				// Check pause
 				if (this.shouldPause) {
@@ -317,9 +311,9 @@ export class Tuzk<T> {
 		for (const task of this.dependenciesMap.keys()) {
 			if (task.isFinished()) {
 				if (task.stateIs(TuzkState.Failed)) {
-					promiseAction.reject(new TuzkDependencyFailedError(task));
+					promiseAction.reject(new DependencyFailedError(task));
 				} else if (task.stateIs(TuzkState.Canceled)) {
-					promiseAction.reject(new TuzkCanceledError());
+					promiseAction.reject(new CanceledError());
 				}
 			} else {
 				isAllSucceed = false;
@@ -336,7 +330,7 @@ export class Tuzk<T> {
 	 * Start this task.
 	 *
 	 * @throws {TuzkError} If the task is already started.
-	 * @throws {TuzkCanceledError} If the task is canceled.
+	 * @throws {CanceledError} If the task is canceled.
 	 * @throws {unknown} If the given {@link Tuzk.runner} throws any error.
 	 *
 	 * @returns A promise that resolves when the task is finished.
@@ -346,7 +340,7 @@ export class Tuzk<T> {
 			case TuzkState.Waiting:
 			case TuzkState.Running:
 			case TuzkState.Paused:
-				throw new TuzkInvalidActionError(`Tuzk can not started again during running`);
+				throw new InvalidActionError(`Tuzk can not started again during running`);
 		}
 
 		try {
@@ -368,7 +362,7 @@ export class Tuzk<T> {
 			return this.result;
 		} catch (error: unknown) {
 			this.error = error;
-			this.setState(error instanceof TuzkCanceledError ? TuzkState.Canceled : TuzkState.Failed);
+			this.setState(error instanceof CanceledError ? TuzkState.Canceled : TuzkState.Failed);
 			throw error;
 		} finally {
 			this.shouldCancel = false;
@@ -381,7 +375,7 @@ export class Tuzk<T> {
 	 *
 	 * Next time the runner calls {@link Tuzk.checkpoint}, the task will be really paused.
 	 *
-	 * @throws {TuzkInvalidActionError} If the task is not running.
+	 * @throws {InvalidActionError} If the task is not running.
 	 */
 	public pause(): void {
 		switch (this.state) {
@@ -390,7 +384,7 @@ export class Tuzk<T> {
 				this.shouldPause = true;
 				break;
 			default:
-				throw new TuzkInvalidActionError(`Cannot pause a tuzk when it's not running or paused`);
+				throw new InvalidActionError(`Cannot pause a tuzk when it's not running or paused`);
 		}
 	}
 
@@ -401,7 +395,7 @@ export class Tuzk<T> {
 	 *
 	 * If the task is really paused, it will be resumed.
 	 *
-	 * @throws {TuzkInvalidActionError} If the task is not running.
+	 * @throws {InvalidActionError} If the task is not running.
 	 */
 	public resume(): void {
 		switch (this.state) {
@@ -411,7 +405,7 @@ export class Tuzk<T> {
 
 				if (this.state === TuzkState.Paused) {
 					if (this.checkpointPromiseAction === null) {
-						throw new TuzkNeverError(`checkpointPromiseAction should not be null when paused`);
+						throw new NeverError(`checkpointPromiseAction should not be null when paused`);
 					}
 					this.checkpointPromiseAction.resolve();
 					this.checkpointPromiseAction = null;
@@ -420,7 +414,7 @@ export class Tuzk<T> {
 
 				break;
 			default:
-				throw new TuzkInvalidActionError(`Cannot resume a tuzk when it's not paused or running`);
+				throw new InvalidActionError(`Cannot resume a tuzk when it's not paused or running`);
 		}
 	}
 
@@ -438,7 +432,7 @@ export class Tuzk<T> {
 	 *
 	 * Next time the runner calls {@link Tuzk.checkpoint}, the task will no longer run.
 	 *
-	 * @throws {TuzkInvalidActionError} If the task is not running.
+	 * @throws {InvalidActionError} If the task is not running.
 	 */
 	public cancel(): void {
 		switch (this.state) {
@@ -447,11 +441,11 @@ export class Tuzk<T> {
 			case TuzkState.Canceled:
 				this.shouldCancel = true;
 				if (this.checkpointPromiseAction !== null) {
-					this.checkpointPromiseAction.reject(new TuzkCanceledError());
+					this.checkpointPromiseAction.reject(new CanceledError());
 				}
 				break;
 			default:
-				throw new TuzkInvalidActionError(`Cannot cancel a tuzk when it's not running, paused or canceled`);
+				throw new InvalidActionError(`Cannot cancel a tuzk when it's not running, paused or canceled`);
 		}
 	}
 

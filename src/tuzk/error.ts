@@ -8,21 +8,21 @@ export class TuzkError extends Error {}
 /**
  * Thrown when an invalid action is performed on a tuzk
  */
-export class TuzkInvalidActionError extends Error {}
+export class InvalidActionError extends TuzkError {}
 
 /**
  * Thrown when:
  * - The tuzk is canceled
  * - Any dependency is canceled
  */
-export class TuzkCanceledError extends TuzkError {}
+export class CanceledError extends TuzkError {}
 
 /**
  * Thrown when a dependency fails
  *
  * @param dependency The dependency that failed
  */
-export class TuzkDependencyFailedError extends TuzkError {
+export class DependencyFailedError extends TuzkError {
 	constructor(public readonly dependency: Tuzk<unknown>) {
 		super();
 	}
@@ -31,4 +31,4 @@ export class TuzkDependencyFailedError extends TuzkError {
 /**
  * If this error is thrown, it means there's probably a bug in tuzk
  */
-export class TuzkNeverError extends TuzkError {}
+export class NeverError extends TuzkError {}
