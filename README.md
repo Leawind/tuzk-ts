@@ -21,7 +21,7 @@ Here are some simple examples of how to use Tuzk:
 ### Basic Task
 
 ```typescript
-import { Tuzk, TuzkState } from '@leawind/tuzk';
+import { Tuzk } from '@leawind/tuzk';
 
 const task = new Tuzk<number>(async (tuzk) => {
 	let sum = 0;
@@ -32,9 +32,9 @@ const task = new Tuzk<number>(async (tuzk) => {
 	return sum;
 });
 
-assert(task.getState() === TuzkState.Pending);
+assert(task.stateIs('pending'));
 const result = await task.start();
-assert(task.getState() === TuzkState.Success);
+assert(task.stateIs('success'));
 
 assert(result === 5050);
 ```
@@ -42,7 +42,7 @@ assert(result === 5050);
 ### Task with Dependency
 
 ```typescript
-import { Tuzk, TuzkState } from '@leawind/tuzk';
+import { Tuzk } from '@leawind/tuzk';
 
 const tuzk1: Tuzk<void> = new Tuzk(async (tuzk) => await tuzk.checkpoint(0.5));
 const tuzk2: Tuzk<void> = new Tuzk(async (tuzk) => await tuzk.checkpoint(0.5));
@@ -52,14 +52,14 @@ tuzk2.addDependency(tuzk1);
 tuzk1.start(); // You need to manually start the dependency
 await tuzk2.start();
 
-assert(tuzk1.stateIs(TuzkState.Success));
-assert(tuzk2.stateIs(TuzkState.Success));
+assert(tuzk1.stateIs('success'));
+assert(tuzk2.stateIs('success'));
 ```
 
 ### Combine all tasks
 
 ```typescript
-import { Tuzk, TuzkState } from '@leawind/tuzk';
+import { Tuzk } from '@leawind/tuzk';
 
 const tuzks: Tuzk<void>[] = [
 	new Tuzk(async (tuzk) => await tuzk.checkpoint(0.5)),
@@ -72,10 +72,10 @@ const tuzkAll = Tuzk.all(tuzks);
 await tuzkAll.start();
 // It only succeeds when all subtasks succeed
 
-assert(tuzks[0].stateIs(TuzkState.Success));
-assert(tuzks[1].stateIs(TuzkState.Success));
+assert(tuzks[0].stateIs('success'));
+assert(tuzks[1].stateIs('success'));
 
-assert(tuzkAll.stateIs(TuzkState.Success));
+assert(tuzkAll.stateIs('success'));
 ```
 
 ## Task State Diagram

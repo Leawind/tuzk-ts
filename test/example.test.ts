@@ -1,5 +1,5 @@
 import { assert } from '@std/assert';
-import { Tuzk, TuzkState } from '@/index.ts';
+import { Tuzk } from '@/index.ts';
 
 Deno.test('Example: basic', async () => {
 	const task: Tuzk<number> = new Tuzk<number>(async (tuzk) => {
@@ -12,9 +12,9 @@ Deno.test('Example: basic', async () => {
 		return sum;
 	});
 
-	assert(task.getState() === TuzkState.Pending);
+	assert(task.stateIs('pending'));
 	const result = await task.start();
-	assert(task.stateIs(TuzkState.Success));
+	assert(task.stateIs('success'));
 
 	assert(result === 5050);
 });
@@ -29,8 +29,8 @@ Deno.test('Example: dependency', async () => {
 	tuzk1.start();
 	await tuzk2.start();
 
-	assert(tuzk1.stateIs(TuzkState.Success));
-	assert(tuzk2.stateIs(TuzkState.Success));
+	assert(tuzk1.stateIs('success'));
+	assert(tuzk2.stateIs('success'));
 });
 
 Deno.test('Example: all', async () => {
@@ -44,8 +44,8 @@ Deno.test('Example: all', async () => {
 	// It auto starts all subtasks
 	await tuzkAll.start();
 
-	assert(tuzks[0].stateIs(TuzkState.Success));
-	assert(tuzks[1].stateIs(TuzkState.Success));
+	assert(tuzks[0].stateIs('success'));
+	assert(tuzks[1].stateIs('success'));
 
-	assert(tuzkAll.stateIs(TuzkState.Success));
+	assert(tuzkAll.stateIs('success'));
 });
