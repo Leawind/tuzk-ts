@@ -25,7 +25,8 @@ Deno.test('Example: dependency', async () => {
 
 	tuzk2.addDependency(tuzk1);
 
-	tuzk1.start(); // You need to manually start the dependency
+	// You need to manually start the dependency
+	tuzk1.start();
 	await tuzk2.start();
 
 	assert(tuzk1.stateIs(TuzkState.Success));
