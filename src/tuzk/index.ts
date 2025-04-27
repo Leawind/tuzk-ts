@@ -33,26 +33,28 @@ export enum TuzkState {
 	Canceled,
 }
 
-type TuzkPicked<T> = Pick<
-	Tuzk<T>,
+export type RunnerKeys =
 	| 'setProgress'
 	| 'checkpoint'
 	| 'pause'
 	| 'resume'
-	| 'cancel'
->;
+	| 'cancel';
+
+export type TuzkPicked<T> = T extends Tuzk<unknown, infer F> ? Pick<T, Extract<keyof T, RunnerKeys | F>>
+	: never;
 
 /**
  * A function to run the task.
  *
  * If you never invoke it, the task can not be paused or canceled during running
  */
-export type TuzkRunner<T> = (tuzk: TuzkPicked<T>) => PromiseLike<T>;
+export type TuzkRunner<T> = T extends Tuzk<infer R, string> ? (task: TuzkPicked<T>) => PromiseLike<R> | R
+	: never;
 
 /**
  * Can be converted to a Tuzk using {@link Tuzk.from}
  */
-export type TuzkLike<T> = Tuzk<T> | TuzkRunner<T>;
+export type TuzkLike<R> = Tuzk<R> | TuzkRunner<Tuzk<R>>;
 
 type PromiseAction = {
 	resolve: (value: void | PromiseLike<void>) => void;
@@ -62,20 +64,25 @@ type PromiseAction = {
 /**
  * Tuzk is task that can be started, paused, resumed, canceled.
  *
+ * ## progress
+ *
+ * In the runner, you can use {@link Tuzk.checkpoint} or {@link Tuzk.setProgress} to update the progress.
+ *
+ * You can use {@link Tuzk.onProgressUpdated} to listen to the progress change.
+ *
  * ## Dependencies
  *
  * You can also add dependencies to it, and it will only start when all of its dependencies succeed.
  *
  * If any dependency is failed or canceled, this task won't start.
  *
- * ## progress
- *
- * In the runner, you can use {@link Tuzk.checkpoint} or {@link Tuzk.setProgress} to update the progress.
- *
- * You can use {@link Tuzk.onProgressUpdated} to listen to the progress change.
+ * @template R Result type
+ * @template F Fields that can be accessed in runner
  */
-export class Tuzk<T> {
-	private readonly runner: TuzkRunner<T>;
+export class Tuzk<R, F extends string = never> {
+	#template_holder_F!: F;
+
+	private readonly runner: TuzkRunner<Tuzk<R>>;
 
 	/**
 	 * Progress of the task. Range: [0.0, 1.0]
@@ -102,7 +109,7 @@ export class Tuzk<T> {
 
 	private state: TuzkState = TuzkState.Pending;
 
-	private result?: T;
+	private result?: R;
 
 	/**
 	 * Dependencies of this task.
@@ -117,7 +124,7 @@ export class Tuzk<T> {
 	public readonly onProgressUpdated: Delegate<number> = new Delegate<number>();
 	public readonly onStateUpdated: Delegate<TuzkState> = new Delegate<TuzkState>();
 
-	public constructor(runner: TuzkRunner<T>) {
+	public constructor(runner: TuzkRunner<Tuzk<R>>) {
 		this.runner = runner;
 	}
 
@@ -163,7 +170,7 @@ export class Tuzk<T> {
 	 *
 	 * @returns The result of the task, or `undefined` if the task has not finished yet.
 	 */
-	public getResult(): T | undefined {
+	public getResult(): R | undefined {
 		return this.result;
 	}
 
@@ -335,7 +342,7 @@ export class Tuzk<T> {
 	 *
 	 * @returns A promise that resolves when the task is finished.
 	 */
-	public async start(): Promise<T> {
+	public async start(): Promise<R> {
 		switch (this.state) {
 			case TuzkState.Waiting:
 			case TuzkState.Running:
@@ -498,7 +505,7 @@ export class Tuzk<T> {
 	 * If the given value is a TuzkRunner function, a new Tuzk instance will be created and returned.
 	 * If the given value is a Tuzk instance, it will be returned as is.
 	 */
-	public static from<T>(value: TuzkLike<T>): Tuzk<T> {
+	public static from<R>(value: TuzkLike<R>): Tuzk<R> {
 		if (value instanceof Tuzk) {
 			return value;
 		} else {
@@ -512,11 +519,11 @@ export class Tuzk<T> {
 	 * @param tasks An array of Tuzk instances or TuzkRunner functions.
 	 * @returns A Tuzk instance that resolves with an array of results from all tasks.
 	 */
-	public static all<T>(tasks: TuzkLike<T>[]): Tuzk<T[]> {
-		const tuzks: Tuzk<T>[] = tasks.map((runner) => Tuzk.from(runner));
-		const promises: Promise<T>[] = tuzks.map((task) => task.start());
+	public static all<R>(tasks: TuzkLike<R>[]): Tuzk<R[]> {
+		const tuzks: Tuzk<R>[] = tasks.map((runner) => Tuzk.from(runner));
+		const promises: Promise<R>[] = tuzks.map((task) => task.start());
 
-		return new NestedTuzk<T[]>(tuzks, async () => {
+		return new NestedTuzk<R[], R>(tuzks, async () => {
 			await Promise.all(promises);
 			return tuzks.map((task) => task.getResult()!);
 		});
@@ -528,10 +535,10 @@ export class Tuzk<T> {
 	 * @param tasks An array of Tuzk instances or TuzkRunner functions.
 	 * @returns A Tuzk instance that resolves with the result of the first finished task.
 	 */
-	public static race<T>(tasks: TuzkLike<T>[]): Tuzk<T> {
-		const tuzks: Tuzk<T>[] = tasks.map((runner) => Tuzk.from(runner));
-		const promises: Promise<T>[] = tuzks.map((task) => task.start());
-		return new NestedTuzk<T>(
+	public static race<R>(tasks: TuzkLike<R>[]): Tuzk<R> {
+		const tuzks: Tuzk<R>[] = tasks.map((runner) => Tuzk.from(runner));
+		const promises: Promise<R>[] = tuzks.map((task) => task.start());
+		return new NestedTuzk<R, R>(
 			tuzks,
 			() => Promise.race(promises),
 		);
@@ -541,10 +548,10 @@ export class Tuzk<T> {
 /**
  * A nested Tuzk task that contains multiple subtasks.
  */
-export class NestedTuzk<T, SubT = unknown> extends Tuzk<T> {
-	private subtasks: Tuzk<SubT>[];
+export class NestedTuzk<R, SubR> extends Tuzk<R> {
+	private subtasks: Tuzk<SubR>[];
 
-	constructor(tasks: Tuzk<SubT>[], runner: TuzkRunner<T>) {
+	constructor(tasks: Tuzk<SubR>[], runner: TuzkRunner<Tuzk<R>>) {
 		super(runner);
 		this.subtasks = [...tasks];
 	}
