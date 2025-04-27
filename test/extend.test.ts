@@ -1,5 +1,6 @@
 import { Tuzk, type TuzkRunner } from '@/index.ts';
 import type { TuzkPicked } from '@/tuzk/index.ts';
+import { assert } from '@std/assert';
 
 Deno.test('extends Tuzk', async () => {
 	class MyTask extends Tuzk<void, 'wait'> {
@@ -23,5 +24,7 @@ Deno.test('extends Tuzk', async () => {
 		console.log(`wait end`);
 	});
 
+	assert(task.stateIs('pending'));
 	await task.start();
+	assert(task.stateIs('success'));
 });

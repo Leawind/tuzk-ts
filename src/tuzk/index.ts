@@ -9,28 +9,28 @@ export enum TuzkState {
 	/**
 	 * Not started yet
 	 */
-	Pending,
+	Pending = 'pending',
 
 	/**
 	 * Waiting for dependencies
 	 */
-	Waiting,
+	Waiting = 'waiting',
 
 	/**
 	 * Already started, not finished yet
 	 */
-	Running,
+	Running = 'running',
 
 	/**
 	 * Paused by {@link Tuzk.pause}.
 	 * Use {@link Tuzk.resume} to resume.
 	 */
-	Paused,
+	Paused = 'paused',
 
 	// Finished
-	Success,
-	Failed,
-	Canceled,
+	Success = 'success',
+	Failed = 'failed',
+	Canceled = 'canceled',
 }
 
 export type RunnerKeys =
@@ -40,7 +40,8 @@ export type RunnerKeys =
 	| 'resume'
 	| 'cancel';
 
-export type TuzkPicked<T> = T extends Tuzk<unknown, infer F> ? Pick<T, Extract<keyof T, RunnerKeys | F>>
+export type TuzkPicked<T> = T extends Tuzk<unknown, infer F>
+	? Pick<T, Extract<keyof T, F | 'setProgress' | 'checkpoint' | 'pause' | 'resume' | 'cancel'>>
 	: never;
 
 /**
@@ -469,7 +470,9 @@ export class Tuzk<R, F extends string = never> {
 	// State check
 	/////////////////////////////////////////////////////////////////
 
-	public stateIs(state: TuzkState): boolean {
+	public stateIs(state: TuzkState): boolean;
+	public stateIs(state: `${TuzkState}`): boolean;
+	public stateIs(state: TuzkState | `${TuzkState}`): boolean {
 		return this.state === state;
 	}
 
