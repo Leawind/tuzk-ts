@@ -1,6 +1,6 @@
 import { assert } from '@std/assert';
+import { TimeRuler } from '@leawind/inventory/test_utils';
 import { Tuzk } from '@/index.ts';
-import { TimeRuler } from 'jsr:@leawind/inventory/test_utils';
 
 Deno.test('Example: basic', async () => {
 	const task: Tuzk<number> = new Tuzk<number>(async (tuzk) => {

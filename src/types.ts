@@ -70,7 +70,7 @@ export type TuzkRunner<T extends BaseTuzk> = (task: TuzkAllowedInterface<T>) =>
  * @template R - Type of the task result
  * @see Tuzk.from Conversion method
  */
-export type TuzkLike<R> = Tuzk<R> | TuzkRunner<Tuzk<R>>;
+export type TuzkLike<R, F extends string = never> = TuzkRunner<Tuzk<R, F>> | Tuzk<R, F>;
 
 /**
  * Control interface for managing Promise resolution

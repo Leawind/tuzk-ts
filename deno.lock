@@ -1,17 +1,30 @@
 {
   "version": "4",
   "specifiers": {
+    "jsr:@leawind/delegate@0.4": "0.4.1",
     "jsr:@leawind/delegate@0.5": "0.5.0",
     "jsr:@leawind/inventory@*": "0.9.1",
+    "jsr:@leawind/inventory@~0.9.2": "0.9.2",
     "jsr:@std/assert@*": "1.0.11",
-    "jsr:@std/internal@^1.0.5": "1.0.5"
+    "jsr:@std/internal@^1.0.5": "1.0.5",
+    "jsr:@std/path@1": "1.0.9"
   },
   "jsr": {
+    "@leawind/delegate@0.4.1": {
+      "integrity": "882bd86d38af9864d6e060a548b2e7b3fd021882d2a1f3b6980780a250cf2fe8"
+    },
     "@leawind/delegate@0.5.0": {
       "integrity": "2b26a7c0ba2c5c334aa146fabc37c2622582de62d0806eb0ca9aa027dba202f0"
     },
     "@leawind/inventory@0.9.1": {
       "integrity": "7be62f04e526f741723158f39c22e3e762a57434001d5757310f12710f09b6bf"
+    },
+    "@leawind/inventory@0.9.2": {
+      "integrity": "5b3c635e7d818916fb36c255b7f55701b0b8e42663f4d10884b953f026d2e914",
+      "dependencies": [
+        "jsr:@leawind/delegate@0.4",
+        "jsr:@std/path"
+      ]
     },
     "@std/assert@1.0.11": {
       "integrity": "2461ef3c368fe88bc60e186e7744a93112f16fd110022e113a0849e94d1c83c1",
@@ -21,6 +34,9 @@
     },
     "@std/internal@1.0.5": {
       "integrity": "54a546004f769c1ac9e025abd15a76b6671ddc9687e2313b67376125650dc7ba"
+    },
+    "@std/path@1.0.9": {
+      "integrity": "260a49f11edd3db93dd38350bf9cd1b4d1366afa98e81b86167b4e3dd750129e"
     }
   },
   "remote": {
@@ -30,7 +46,8 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@leawind/delegate@0.5"
+      "jsr:@leawind/delegate@0.5",
+      "jsr:@leawind/inventory@~0.9.2"
     ]
   }
 }

@@ -322,7 +322,7 @@ export class Tuzk<R, AllowedFields extends string = never> {
 	 * @see TuzkLike
 	 * @see TuzkRunner
 	 */
-	public static from<R>(value: TuzkLike<R>): Tuzk<R> {
+	public static from<R, F extends string = never>(value: TuzkLike<R, F>): Tuzk<R, F> {
 		if (value instanceof Tuzk) {
 			return value;
 		} else {
