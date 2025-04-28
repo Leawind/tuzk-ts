@@ -1,5 +1,5 @@
 import { assert } from '@std/assert';
-import { Tuzk, type TuzkPicked, type TuzkRunner } from '@/index.ts';
+import { Tuzk, type TuzkAllowedInterface, type TuzkRunner } from '@/index.ts';
 
 Deno.test('extends Tuzk', async () => {
 	class MyTask extends Tuzk<void, 'wait'> {
@@ -15,7 +15,7 @@ Deno.test('extends Tuzk', async () => {
 		}
 	}
 
-	const task = new MyTask(async (task: TuzkPicked<MyTask>) => {
+	const task = new MyTask(async (task: TuzkAllowedInterface<MyTask>) => {
 		console.log(`wait begin`);
 		await task.wait(50);
 		await task.checkpoint(0.5);

@@ -28,30 +28,32 @@ export enum TuzkState {
 	Canceled = 'canceled',
 }
 
-export type RunnerKeys =
+export type TuzkCoreMethods =
 	| 'setProgress'
 	| 'checkpoint'
 	| 'pause'
 	| 'resume'
 	| 'cancel';
 
-export type TuzkPicked<T> = T extends Tuzk<unknown, infer F> ? Pick<T, Extract<keyof T, F | RunnerKeys>>
-	: never;
+type BaseTuzk = Tuzk<unknown, string>;
+type TuzkAllowedFields<T extends BaseTuzk> = T extends Tuzk<unknown, infer F> ? F : never;
+type TuzkReturnType<T extends BaseTuzk> = T extends Tuzk<infer R, string> ? R : never;
 
-/**
- * A function to run the task.
- *
- * If you never invoke it, the task can not be paused or canceled during running
- */
-export type TuzkRunner<T> = T extends Tuzk<infer R, string> ? (task: TuzkPicked<T>) => PromiseLike<R> | R
-	: never;
+export type TuzkAllowedInterface<T extends BaseTuzk> = Pick<
+	T,
+	Extract<keyof T, TuzkAllowedFields<T> | TuzkCoreMethods>
+>;
+
+export type TuzkRunner<T extends BaseTuzk> = (task: TuzkAllowedInterface<T>) =>
+	| PromiseLike<TuzkReturnType<T>>
+	| TuzkReturnType<T>;
 
 /**
  * Can be converted to a Tuzk using {@link Tuzk.from}
  */
 export type TuzkLike<R> = Tuzk<R> | TuzkRunner<Tuzk<R>>;
 
-export type PromiseAction = {
+export type PromiseControl = {
 	resolve: (value: void | PromiseLike<void>) => void;
 	reject: (reason?: unknown) => void;
 };

@@ -12,7 +12,7 @@ export class InvalidActionError extends TuzkError {}
  * Thrown when:
  * - The tuzk is canceled
  */
-export class CanceledError extends TuzkError {}
+export class CancelledError extends TuzkError {}
 
 /**
  * If this error is thrown, it means there's probably a bug in tuzk

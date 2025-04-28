@@ -68,7 +68,7 @@ Deno.test('task should be canceled', async () => {
 		console.log(`This should not be printed.`);
 	});
 
-	await assertRejects(async () => await tuzk.start(), errors.CanceledError);
+	await assertRejects(async () => await tuzk.start(), errors.CancelledError);
 
 	assert(tuzk.stateIs('canceled'));
 });
@@ -82,7 +82,7 @@ Deno.test('task should be canceled when paused', async () => {
 		console.log(`This should not be printed.`);
 	});
 
-	await assertRejects(async () => await tuzk.start(), errors.CanceledError);
+	await assertRejects(async () => await tuzk.start(), errors.CancelledError);
 
 	assert(tuzk.stateIs('canceled'));
 });
@@ -126,7 +126,7 @@ Deno.test('all tasks should handle cancellation', async () => {
 		await tuzk.checkpoint(0.8);
 	});
 	const tuzkAll = Tuzk.all([tuzk1, tuzk2]);
-	await assertRejects(async () => await tuzkAll.start(), errors.CanceledError);
+	await assertRejects(async () => await tuzkAll.start(), errors.CancelledError);
 	assert(!tuzk1.stateIs('canceled'));
 	assert(tuzk2.stateIs('canceled'));
 	assert(tuzkAll.stateIs('canceled'));
@@ -181,7 +181,7 @@ Deno.test('race should handle cancellation', async () => {
 		await tuzk.checkpoint(0.8);
 	});
 	const tuzkRace = Tuzk.race([tuzk1, tuzk2]);
-	await assertRejects(async () => await tuzkRace.start(), errors.CanceledError);
+	await assertRejects(async () => await tuzkRace.start(), errors.CancelledError);
 	clearTestTimeouts();
 
 	assert(!tuzk1.stateIs('canceled'));

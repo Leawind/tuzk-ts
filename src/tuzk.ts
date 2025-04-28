@@ -1,7 +1,7 @@
 import { Delegate } from '@leawind/delegate';
 
-import { CanceledError, InvalidActionError, NeverError, TuzkError } from '@/errors.ts';
-import { type PromiseAction, type TuzkLike, type TuzkRunner, TuzkState } from '@/types.ts';
+import { CancelledError, InvalidActionError, NeverError, TuzkError } from '@/errors.ts';
+import { type PromiseControl, type TuzkLike, type TuzkRunner, TuzkState } from '@/types.ts';
 
 /**
  * Tuzk is task that can be started, paused, resumed, canceled.
@@ -13,10 +13,10 @@ import { type PromiseAction, type TuzkLike, type TuzkRunner, TuzkState } from '@
  * You can use {@link Tuzk.onProgressUpdated} to listen to the progress change.
  *
  * @template R Result type
- * @template F Fields that can be accessed in runner
+ * @template AllowedFields Fields that can be accessed in runner
  */
-export class Tuzk<R, F extends string = never> {
-	#template_holder_F!: F;
+export class Tuzk<R, AllowedFields extends string = never> {
+	#_allowedFieldsTypeHolder!: AllowedFields;
 
 	private readonly runner: TuzkRunner<Tuzk<R>>;
 
@@ -35,7 +35,7 @@ export class Tuzk<R, F extends string = never> {
 	 */
 	private shouldCancel: boolean = false;
 
-	private checkpointPromiseAction: PromiseAction | null = null;
+	private checkpointPromiseAction: PromiseControl | null = null;
 
 	/**
 	 * If this task was failed, this will be set.
@@ -109,7 +109,7 @@ export class Tuzk<R, F extends string = never> {
 	 *
 	 * - Update the progress
 	 * - Check if the task should be paused or canceled
-	 *     - If the task is marked as canceled by {@link Tuzk.cancel}, it throws a {@link CanceledError}.
+	 *     - If the task is marked as canceled by {@link Tuzk.cancel}, it throws a {@link CancelledError}.
 	 *     - If the task is marked as paused by {@link Tuzk.pause}, it won't resolve until {@link Tuzk.resume} is called.
 	 *
 	 * Always invoke and await this method in a task runner.
@@ -118,7 +118,7 @@ export class Tuzk<R, F extends string = never> {
 	 *
 	 * @throws {InvalidActionError} If the task is not running.
 	 * @throws {TuzkError} If progress is not in range [0.0, 1.0].
-	 * @throws {CanceledError} If this task is marked as canceled.
+	 * @throws {CancelledError} If this task is marked as canceled.
 	 */
 	public checkpoint(progress?: number): Promise<void> {
 		if (!this.stateIs(TuzkState.Running)) {
@@ -137,7 +137,7 @@ export class Tuzk<R, F extends string = never> {
 			if (this.shouldCancel) {
 				this.setState(TuzkState.Canceled);
 				// If do not reject or resolve, the Promise will stay in memory forever.
-				reject(new CanceledError());
+				reject(new CancelledError());
 			} else {
 				// Check pause
 				if (this.shouldPause) {
@@ -155,7 +155,7 @@ export class Tuzk<R, F extends string = never> {
 	 * Start this task.
 	 *
 	 * @throws {TuzkError} If the task is already started.
-	 * @throws {CanceledError} If the task is canceled.
+	 * @throws {CancelledError} If the task is canceled.
 	 * @throws {unknown} If the given {@link Tuzk.runner} throws any error.
 	 *
 	 * @returns A promise that resolves when the task is finished.
@@ -178,7 +178,7 @@ export class Tuzk<R, F extends string = never> {
 			return this.result;
 		} catch (error: unknown) {
 			this.error = error;
-			this.setState(error instanceof CanceledError ? TuzkState.Canceled : TuzkState.Failed);
+			this.setState(error instanceof CancelledError ? TuzkState.Canceled : TuzkState.Failed);
 			throw error;
 		} finally {
 			this.shouldCancel = false;
@@ -250,7 +250,7 @@ export class Tuzk<R, F extends string = never> {
 			case TuzkState.Canceled:
 				this.shouldCancel = true;
 				if (this.checkpointPromiseAction !== null) {
-					this.checkpointPromiseAction.reject(new CanceledError());
+					this.checkpointPromiseAction.reject(new CancelledError());
 				}
 				break;
 			default:
@@ -316,8 +316,11 @@ export class Tuzk<R, F extends string = never> {
 	/**
 	 * Create a Tuzk instance from a TuzkRunner function.
 	 *
-	 * If the given value is a TuzkRunner function, a new Tuzk instance will be created and returned.
+	 * If the given value is a TuzkRunner, a new Tuzk instance will be created and returned.
 	 * If the given value is a Tuzk instance, it will be returned as is.
+	 *
+	 * @see TuzkLike
+	 * @see TuzkRunner
 	 */
 	public static from<R>(value: TuzkLike<R>): Tuzk<R> {
 		if (value instanceof Tuzk) {
@@ -337,7 +340,7 @@ export class Tuzk<R, F extends string = never> {
 		const tuzks: Tuzk<R>[] = tasks.map((runner) => Tuzk.from(runner));
 		const promises: Promise<R>[] = tuzks.map((task) => task.start());
 
-		return new NestedTuzk<R[], R>(tuzks, async () => {
+		return new CompositeTuzk<R[], R>(tuzks, async () => {
 			await Promise.all(promises);
 			return tuzks.map((task) => task.getResult()!);
 		});
@@ -352,17 +355,15 @@ export class Tuzk<R, F extends string = never> {
 	public static race<R>(tasks: TuzkLike<R>[]): Tuzk<R> {
 		const tuzks: Tuzk<R>[] = tasks.map((runner) => Tuzk.from(runner));
 		const promises: Promise<R>[] = tuzks.map((task) => task.start());
-		return new NestedTuzk<R, R>(
+		return new CompositeTuzk<R, R>(
 			tuzks,
 			() => Promise.race(promises),
 		);
 	}
 }
 
-/**
- * A nested Tuzk task that contains multiple subtasks.
- */
-export class NestedTuzk<R, SubR> extends Tuzk<R> {
+/** */
+export class CompositeTuzk<R, SubR> extends Tuzk<R> {
 	private subtasks: Tuzk<SubR>[];
 
 	constructor(tasks: Tuzk<SubR>[], runner: TuzkRunner<Tuzk<R>>) {
