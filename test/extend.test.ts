@@ -1,6 +1,5 @@
-import { Tuzk, type TuzkRunner } from '@/index.ts';
-import type { TuzkPicked } from '@/tuzk/index.ts';
 import { assert } from '@std/assert';
+import { Tuzk, type TuzkPicked, type TuzkRunner } from '@/index.ts';
 
 Deno.test('extends Tuzk', async () => {
 	class MyTask extends Tuzk<void, 'wait'> {
