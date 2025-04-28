@@ -1,14 +1,14 @@
 {
   "version": "4",
   "specifiers": {
-    "jsr:@leawind/delegate@0.4": "0.4.0",
+    "jsr:@leawind/delegate@0.5": "0.5.0",
     "jsr:@leawind/inventory@*": "0.9.1",
     "jsr:@std/assert@*": "1.0.11",
     "jsr:@std/internal@^1.0.5": "1.0.5"
   },
   "jsr": {
-    "@leawind/delegate@0.4.0": {
-      "integrity": "547b5973bf66f10f4c48a6e96671e50036883b011f4f4a8ce29487e1394a506f"
+    "@leawind/delegate@0.5.0": {
+      "integrity": "2b26a7c0ba2c5c334aa146fabc37c2622582de62d0806eb0ca9aa027dba202f0"
     },
     "@leawind/inventory@0.9.1": {
       "integrity": "7be62f04e526f741723158f39c22e3e762a57434001d5757310f12710f09b6bf"
@@ -30,7 +30,7 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@leawind/delegate@0.4"
+      "jsr:@leawind/delegate@0.5"
     ]
   }
 }
