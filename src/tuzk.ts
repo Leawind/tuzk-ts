@@ -362,17 +362,28 @@ export class Tuzk<R, AllowedFields extends string = never> {
 	}
 }
 
-/** */
+/**
+ * Composite task that manages multiple child tasks
+ * @template R - Result type of the composite task
+ * @template SubR - Result type of child tasks
+ */
 export class CompositeTuzk<R, SubR> extends Tuzk<R> {
+	/** Child tasks managed by this composite task */
 	private subtasks: Tuzk<SubR>[];
 
-	constructor(tasks: Tuzk<SubR>[], runner: TuzkRunner<Tuzk<R>>) {
+	/**
+	 * Creates a nested task container
+	 * @param tasks - Array of child tasks to manage
+	 * @param runner - Execution logic for the composite task
+	 */
+	public constructor(tasks: Tuzk<SubR>[], runner: TuzkRunner<Tuzk<R>>) {
 		super(runner);
 		this.subtasks = [...tasks];
 	}
 
 	/**
-	 * Pause the nested task and all its subtasks.
+	 * Suspends execution of this task and all child tasks
+	 * @throws {InvalidActionError} If task isn't in runnable state
 	 */
 	public override pause(): void {
 		super.pause();
@@ -382,7 +393,8 @@ export class CompositeTuzk<R, SubR> extends Tuzk<R> {
 	}
 
 	/**
-	 * Resume the nested task and all its subtasks.
+	 * Resumes execution of this task and all child tasks
+	 * @throws {InvalidActionError} If task isn't in pausable state
 	 */
 	public override resume(): void {
 		super.resume();
@@ -392,7 +404,8 @@ export class CompositeTuzk<R, SubR> extends Tuzk<R> {
 	}
 
 	/**
-	 * Cancel the nested task and all its subtasks.
+	 * Cancels execution of this task and all child tasks
+	 * @throws {InvalidActionError} If task isn't in cancelable state
 	 */
 	public override cancel(): void {
 		super.cancel();
