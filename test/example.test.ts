@@ -19,20 +19,6 @@ Deno.test('Example: basic', async () => {
 	assert(result === 5050);
 });
 
-Deno.test('Example: dependency', async () => {
-	const tuzk1: Tuzk<void> = new Tuzk(async (tuzk) => await tuzk.checkpoint(0.5));
-	const tuzk2: Tuzk<void> = new Tuzk(async (tuzk) => await tuzk.checkpoint(0.5));
-
-	tuzk2.addDependency(tuzk1);
-
-	// You need to manually start the dependency
-	tuzk1.start();
-	await tuzk2.start();
-
-	assert(tuzk1.stateIs('success'));
-	assert(tuzk2.stateIs('success'));
-});
-
 Deno.test('Example: all', async () => {
 	const tuzks: Tuzk<void>[] = [
 		new Tuzk(async (tuzk) => await tuzk.checkpoint(0.5)),

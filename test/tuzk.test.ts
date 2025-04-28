@@ -210,49 +210,6 @@ Deno.test('race should handle failure', async () => {
 	clearTestTimeouts();
 });
 
-Deno.test('Dependency failure', async () => {
-	const tuzk1 = new Tuzk(async (tuzk) => await tuzk.checkpoint(0.5));
-
-	const tuzk2 = new Tuzk(async (tuzk) => {
-		await tuzk.checkpoint(0.5);
-		throw new Error('Task2 failed');
-	}).addDependency(tuzk1);
-
-	const tuzk3 = new Tuzk(async (tuzk) => await tuzk.checkpoint(0.5))
-		.addDependency(tuzk1)
-		.addDependency(tuzk2);
-
-	tuzk1.start();
-	assertRejects(() => tuzk2.start(), Error);
-	await assertRejects(async () => await tuzk3.start(), errors.DependencyFailedError);
-
-	assert(tuzk1.stateIs('success'));
-	assert(tuzk2.stateIs('failed'));
-	assert(tuzk3.stateIs('failed'));
-});
-
-Deno.test('Dependency cancel', async () => {
-	const tuzk1 = new Tuzk<void>(async (tuzk) => await tuzk.checkpoint(0.5));
-
-	const tuzk2 = new Tuzk<void>(async (tuzk) => {
-		await tuzk.checkpoint(0.5);
-		tuzk.cancel();
-		await tuzk.checkpoint(0.8);
-	}).addDependency(tuzk1);
-
-	const tuzk3 = new Tuzk(async (tuzk) => await tuzk.checkpoint(0.5))
-		.addDependency(tuzk1)
-		.addDependency(tuzk2);
-
-	tuzk1.start();
-	assertRejects(() => tuzk2.start(), errors.CanceledError);
-	await assertRejects(async () => await tuzk3.start(), errors.CanceledError);
-
-	assert(tuzk1.stateIs('success'));
-	assert(tuzk2.stateIs('canceled'));
-	assert(tuzk3.stateIs('canceled'));
-});
-
 Deno.test('return value', async () => {
 	const tuzk = new Tuzk(async (tuzk) => {
 		await tuzk.checkpoint(0.2);

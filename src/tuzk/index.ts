@@ -1,6 +1,6 @@
-import { Delegate, type DelegateListener } from '@leawind/delegate';
+import { Delegate } from '@leawind/delegate';
 
-import { CanceledError, DependencyFailedError, InvalidActionError, NeverError, TuzkError } from '@/tuzk/error.ts';
+import { CanceledError, InvalidActionError, NeverError, TuzkError } from '@/tuzk/error.ts';
 
 /**
  * The state of a Tuzk task.
@@ -10,11 +10,6 @@ export enum TuzkState {
 	 * Not started yet
 	 */
 	Pending = 'pending',
-
-	/**
-	 * Waiting for dependencies
-	 */
-	Waiting = 'waiting',
 
 	/**
 	 * Already started, not finished yet
@@ -71,12 +66,6 @@ type PromiseAction = {
  *
  * You can use {@link Tuzk.onProgressUpdated} to listen to the progress change.
  *
- * ## Dependencies
- *
- * You can also add dependencies to it, and it will only start when all of its dependencies succeed.
- *
- * If any dependency is failed or canceled, this task won't start.
- *
  * @template R Result type
  * @template F Fields that can be accessed in runner
  */
@@ -101,7 +90,6 @@ export class Tuzk<R, F extends string = never> {
 	private shouldCancel: boolean = false;
 
 	private checkpointPromiseAction: PromiseAction | null = null;
-	private waitForDependenciesPromiseAction: PromiseAction | null = null;
 
 	/**
 	 * If this task was failed, this will be set.
@@ -111,15 +99,6 @@ export class Tuzk<R, F extends string = never> {
 	private state: TuzkState = TuzkState.Pending;
 
 	private result?: R;
-
-	/**
-	 * Dependencies of this task.
-	 *
-	 * Only if all of its dependencies are finished, this task can be started.
-	 *
-	 * If any dependency is failed or canceled, this task will be failed.
-	 */
-	private readonly dependenciesMap: Map<Tuzk<unknown>, DelegateListener<TuzkState>> = new Map();
 
 	// Delegates
 	public readonly onProgressUpdated: Delegate<number> = new Delegate<number>();
@@ -176,89 +155,6 @@ export class Tuzk<R, F extends string = never> {
 	}
 
 	/////////////////////////////////////////////////////////////////
-	// Dependencies
-	/////////////////////////////////////////////////////////////////
-
-	/**
-	 * Get the dependencies of this task.
-	 *
-	 * @returns An iterator of the dependencies.
-	 */
-	public getDependencies(): MapIterator<Tuzk<unknown>> {
-		return this.dependenciesMap.keys();
-	}
-
-	/**
-	 * Check if the task has a specific dependency.
-	 *
-	 * @param tuzk The task to check.
-	 * @returns `true` if the task is a dependency, `false` otherwise.
-	 */
-	public hasDependency<U>(tuzk: Tuzk<U>): boolean {
-		return this.dependenciesMap.has(tuzk);
-	}
-
-	/**
-	 * Add a dependency to this task.
-	 *
-	 * @param tuzk The task to add as a dependency.
-	 * @returns The current instance of `Tuzk`.
-	 */
-	public addDependency<U>(tuzk: Tuzk<U>): this {
-		if (!this.dependenciesMap.has(tuzk)) {
-			const listener: DelegateListener<TuzkState> = () => {
-				if (this.waitForDependenciesPromiseAction) {
-					return { removeSelf: this.checkDependencies(this.waitForDependenciesPromiseAction) };
-				}
-			};
-			tuzk.onStateUpdated.addListener(listener);
-			this.dependenciesMap.set(tuzk, listener);
-		}
-		return this;
-	}
-
-	/**
-	 * Remove a dependency from this task.
-	 *
-	 * @param task The task to remove from dependencies.
-	 * @returns The current instance of `Tuzk`.
-	 */
-	public removeDependency(task: Tuzk<unknown>): this {
-		const listener = this.dependenciesMap.get(task);
-		if (listener) {
-			this.dependenciesMap.delete(task);
-			task.onStateUpdated.removeListener(listener);
-		}
-		return this;
-	}
-
-	/**
-	 * Add multiple dependencies to this task.
-	 *
-	 * @param tasks The tasks to add as dependencies.
-	 * @returns The current instance of `Tuzk`.
-	 */
-	public addDependencies(tasks: Tuzk<unknown>[]): this {
-		for (const task of tasks) {
-			this.addDependency(task);
-		}
-		return this;
-	}
-
-	/**
-	 * Clear all dependencies of this task.
-	 *
-	 * @returns The current instance of `Tuzk`.
-	 */
-	public clearDependencies(): this {
-		for (const [task, listener] of [...this.dependenciesMap.entries()]) {
-			this.dependenciesMap.delete(task);
-			task.onStateUpdated.removeListener(listener);
-		}
-		return this;
-	}
-
-	/////////////////////////////////////////////////////////////////
 	// Running
 	/////////////////////////////////////////////////////////////////
 
@@ -310,31 +206,6 @@ export class Tuzk<R, F extends string = never> {
 	}
 
 	/**
-	 * Check all dependencies and resolve the promise if all dependencies succeed.
-	 *
-	 * @returns Whether all dependencies are finished.
-	 */
-	private checkDependencies(promiseAction: PromiseAction): boolean {
-		let isAllSucceed = true;
-		for (const task of this.dependenciesMap.keys()) {
-			if (task.isFinished()) {
-				if (task.stateIs(TuzkState.Failed)) {
-					promiseAction.reject(new DependencyFailedError(task));
-				} else if (task.stateIs(TuzkState.Canceled)) {
-					promiseAction.reject(new CanceledError());
-				}
-			} else {
-				isAllSucceed = false;
-			}
-		}
-		if (isAllSucceed) {
-			this.waitForDependenciesPromiseAction = null;
-			promiseAction.resolve();
-		}
-		return isAllSucceed;
-	}
-
-	/**
 	 * Start this task.
 	 *
 	 * @throws {TuzkError} If the task is already started.
@@ -345,19 +216,12 @@ export class Tuzk<R, F extends string = never> {
 	 */
 	public async start(): Promise<R> {
 		switch (this.state) {
-			case TuzkState.Waiting:
 			case TuzkState.Running:
 			case TuzkState.Paused:
 				throw new InvalidActionError(`Tuzk can not started again during running`);
 		}
 
 		try {
-			// Wait for dependencies to finish
-			await new Promise((resolve, reject) => {
-				this.waitForDependenciesPromiseAction = { resolve, reject };
-				this.checkDependencies(this.waitForDependenciesPromiseAction);
-			});
-
 			this.setState(TuzkState.Running);
 
 			// Wait for runner to finish
