@@ -1,5 +1,6 @@
 import { assert } from '@std/assert';
 import { Tuzk } from '@/index.ts';
+import { TimeRuler } from 'jsr:@leawind/inventory/test_utils';
 
 Deno.test('Example: basic', async () => {
 	const task: Tuzk<number> = new Tuzk<number>(async (tuzk) => {
@@ -34,4 +35,43 @@ Deno.test('Example: all', async () => {
 	assert(tuzks[1].stateIs('success'));
 
 	assert(tuzkAll.stateIs('success'));
+});
+
+Deno.test('Task state changing', async () => {
+	const t = new TimeRuler(0);
+
+	//             0       100       200       300       400
+	// Time        |----|----|----|----|----|----|----|----|
+	// Progress    0         0.33      0.66      1.0
+	// Action      S    P         R
+	// Running     >>>>>>>>>>>....>>>>>>>>>>>>>>>>
+	const task = new Tuzk<number>(async (tuzk) => {
+		await t.til(100);
+		await tuzk.checkpoint(0.4);
+
+		await t.til(200);
+		await tuzk.checkpoint(0.6);
+
+		await t.til(300);
+		return 12138;
+	});
+
+	assert(task.stateIs('pending'));
+	task.start();
+	assert(task.stateIs('running'));
+
+	await t.til(50);
+	task.pause();
+	assert(task.stateIs('running'));
+
+	await t.til(150);
+	assert(task.stateIs('paused'));
+	task.resume();
+	assert(task.stateIs('running'));
+
+	await t.til(350);
+	assert(task.stateIs('success'));
+
+	const result = task.getResult();
+	assert(result === 12138);
 });

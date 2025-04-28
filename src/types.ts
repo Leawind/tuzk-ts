@@ -9,6 +9,8 @@ export enum TuzkState {
 	 */
 	Pending = 'pending',
 
+	// Active
+
 	/**
 	 * Already started, not finished yet
 	 */

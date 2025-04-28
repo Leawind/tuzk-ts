@@ -161,10 +161,8 @@ export class Tuzk<R, F extends string = never> {
 	 * @returns A promise that resolves when the task is finished.
 	 */
 	public async start(): Promise<R> {
-		switch (this.state) {
-			case TuzkState.Running:
-			case TuzkState.Paused:
-				throw new InvalidActionError(`Tuzk can not started again during running`);
+		if (this.isActive()) {
+			throw new InvalidActionError(`Tuzk can not started again when active`);
 		}
 
 		try {
@@ -196,13 +194,10 @@ export class Tuzk<R, F extends string = never> {
 	 * @throws {InvalidActionError} If the task is not running.
 	 */
 	public pause(): void {
-		switch (this.state) {
-			case TuzkState.Running:
-			case TuzkState.Paused:
-				this.shouldPause = true;
-				break;
-			default:
-				throw new InvalidActionError(`Cannot pause a tuzk when it's not running or paused`);
+		if (this.isActive()) {
+			this.shouldPause = true;
+		} else {
+			throw new InvalidActionError(`Cannot pause a tuzk when it's not running or paused`);
 		}
 	}
 
@@ -216,23 +211,19 @@ export class Tuzk<R, F extends string = never> {
 	 * @throws {InvalidActionError} If the task is not running.
 	 */
 	public resume(): void {
-		switch (this.state) {
-			case TuzkState.Running:
-			case TuzkState.Paused:
-				this.shouldPause = false;
+		if (this.isActive()) {
+			this.shouldPause = false;
 
-				if (this.state === TuzkState.Paused) {
-					if (this.checkpointPromiseAction === null) {
-						throw new NeverError(`checkpointPromiseAction should not be null when paused`);
-					}
-					this.checkpointPromiseAction.resolve();
-					this.checkpointPromiseAction = null;
-					this.setState(TuzkState.Running);
+			if (this.state === TuzkState.Paused) {
+				if (this.checkpointPromiseAction === null) {
+					throw new NeverError(`checkpointPromiseAction should not be null when paused`);
 				}
-
-				break;
-			default:
-				throw new InvalidActionError(`Cannot resume a tuzk when it's not paused or running`);
+				this.checkpointPromiseAction.resolve();
+				this.checkpointPromiseAction = null;
+				this.setState(TuzkState.Running);
+			}
+		} else {
+			throw new InvalidActionError(`Cannot resume a tuzk when it's not paused or running`);
 		}
 	}
 
@@ -284,6 +275,16 @@ export class Tuzk<R, F extends string = never> {
 	public stateIs(state: `${TuzkState}`): boolean;
 	public stateIs(state: TuzkState | `${TuzkState}`): boolean {
 		return this.state === state;
+	}
+
+	public isActive(): boolean {
+		switch (this.state) {
+			case TuzkState.Running:
+			case TuzkState.Paused:
+				return true;
+			default:
+				return false;
+		}
 	}
 
 	public isFinished(): boolean {
