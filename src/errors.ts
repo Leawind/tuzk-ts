@@ -1,16 +1,24 @@
+import type { TuzkState } from '@/types.ts';
+
 /**
  * Base class for all tuzk errors
  */
 export class TuzkError extends Error {}
 
-/**
- * Thrown when an invalid action is performed on a tuzk
- */
-export class InvalidActionError extends TuzkError {}
+export class InvalidStateError extends TuzkError {
+	constructor(
+		public currentState: TuzkState,
+		public allowedStates: string,
+		public action: string,
+	) {
+		super(`Cannot ${action} when in ${currentState} state. Allowed states: [${allowedStates}]`);
+		this.name = 'InvalidStateError';
+	}
+}
 
 /**
  * Thrown when:
- * - The tuzk is canceled
+ * - The tuzk is cancelled
  */
 export class CancelledError extends TuzkError {}
 

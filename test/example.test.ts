@@ -7,14 +7,14 @@ Deno.test('Example: basic', async () => {
 		let sum = 0;
 		for (let i = 1; i <= 100; i++) {
 			sum += i;
-			// Update progress and check if this task is marked as paused or canceled
+			// Update progress and check if this task is marked as paused or cancelled
 			await tuzk.checkpoint(i / 100);
 		}
 		return sum;
 	});
 
 	assert(task.stateIs('pending'));
-	const result = await task.start();
+	const result = await task.run();
 	assert(task.stateIs('success'));
 
 	assert(result === 5050);
@@ -28,8 +28,8 @@ Deno.test('Example: all', async () => {
 
 	const tuzkAll = Tuzk.all(tuzks);
 
-	// It auto starts all subtasks
-	await tuzkAll.start();
+	// It auto runs all subtasks
+	await tuzkAll.run();
 
 	assert(tuzks[0].stateIs('success'));
 	assert(tuzks[1].stateIs('success'));
@@ -57,7 +57,7 @@ Deno.test('Task state changing', async () => {
 	});
 
 	assert(task.stateIs('pending'));
-	task.start();
+	task.run();
 	assert(task.stateIs('running'));
 
 	await t.til(50);

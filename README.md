@@ -9,7 +9,7 @@ Tuzk is a library for managing asynchronous tasks with progress tracking.
 
 ## Features
 
-- **Task Management**: Start, pause, resume, and cancel tasks.
+- **Task Management**: Run, pause, resume, and cancel tasks.
 - **Progress Tracking**: Track the progress of tasks.
 - **Error Handling**: Handle task errors, including custom error types for specific scenarios.
 
@@ -32,7 +32,7 @@ const task = new Tuzk<number>(async (tuzk) => {
 });
 
 assert(task.stateIs('pending'));
-const result = await task.start();
+const result = await task.run();
 assert(task.stateIs('success'));
 
 assert(result === 5050);
@@ -50,8 +50,8 @@ const tuzks: Tuzk<void>[] = [
 
 const tuzkAll = Tuzk.all(tuzks);
 
-// It auto starts all subtasks
-await tuzkAll.start();
+// It auto runs all subtasks
+await tuzkAll.run();
 // It only succeeds when all subtasks succeed
 
 assert(tuzks[0].stateIs('success'));
@@ -71,6 +71,6 @@ flowchart TB
 	Running ==> Succeed
 	Running --> Failed
 
-	Running --> Canceled
-	Paused --> Canceled
+	Running --> Cancelled
+	Paused --> Cancelled
 ```

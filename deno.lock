@@ -6,7 +6,9 @@
     "jsr:@leawind/inventory@*": "0.9.1",
     "jsr:@leawind/inventory@~0.9.2": "0.9.2",
     "jsr:@std/assert@*": "1.0.11",
+    "jsr:@std/assert@^1.0.13": "1.0.13",
     "jsr:@std/internal@^1.0.5": "1.0.5",
+    "jsr:@std/internal@^1.0.6": "1.0.6",
     "jsr:@std/path@1": "1.0.9"
   },
   "jsr": {
@@ -29,11 +31,20 @@
     "@std/assert@1.0.11": {
       "integrity": "2461ef3c368fe88bc60e186e7744a93112f16fd110022e113a0849e94d1c83c1",
       "dependencies": [
-        "jsr:@std/internal"
+        "jsr:@std/internal@^1.0.5"
+      ]
+    },
+    "@std/assert@1.0.13": {
+      "integrity": "ae0d31e41919b12c656c742b22522c32fb26ed0cba32975cb0de2a273cb68b29",
+      "dependencies": [
+        "jsr:@std/internal@^1.0.6"
       ]
     },
     "@std/internal@1.0.5": {
       "integrity": "54a546004f769c1ac9e025abd15a76b6671ddc9687e2313b67376125650dc7ba"
+    },
+    "@std/internal@1.0.6": {
+      "integrity": "9533b128f230f73bd209408bb07a4b12f8d4255ab2a4d22a1fd6d87304aca9a4"
     },
     "@std/path@1.0.9": {
       "integrity": "260a49f11edd3db93dd38350bf9cd1b4d1366afa98e81b86167b4e3dd750129e"
@@ -47,7 +58,8 @@
   "workspace": {
     "dependencies": [
       "jsr:@leawind/delegate@0.5",
-      "jsr:@leawind/inventory@~0.9.2"
+      "jsr:@leawind/inventory@~0.9.2",
+      "jsr:@std/assert@^1.0.13"
     ]
   }
 }
