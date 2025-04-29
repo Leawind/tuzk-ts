@@ -1,6 +1,6 @@
 {
 	"name": "@leawind/tuzk",
-	"version": "0.5.0",
+	"version": "0.6.0",
 	"license": "GPLv3",
 	"exports": "./src/index.ts",
 	"tasks": {
