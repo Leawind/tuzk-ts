@@ -5,17 +5,16 @@
 [![deno score](https://jsr.io/badges/@leawind/tuzk/score)](https://jsr.io/@leawind/tuzk/doc)
 [![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/Leawind/tuzk-ts/deno-test.yaml?branch=main&logo=github-actions&label=test)](https://github.com/Leawind/tuzk-ts/actions/workflows/deno-test.yaml)
 
-Tuzk is a library for managing asynchronous tasks with progress tracking.
+Tuzk is a library for managing asynchronous tasks with progress tracking and error handling.
 
 ## Features
 
-- **Task Management**: Run, pause, resume, and cancel tasks.
-- **Progress Tracking**: Track the progress of tasks.
-- **Error Handling**: Handle task errors, including custom error types for specific scenarios.
+- **Task Management**: Run, pause, resume, and cancel tasks with intuitive APIs.
+- **Progress Tracking**: Track task progress with checkpoint markers and percentage-based updates.
+- **Error Handling**: Handle task errors with custom error types and centralized error reporting.
+- **Concurrency Support**: Combine multiple tasks using `Tuzk.all()` and `Tuzk.parallel()`.
 
 ## Usage
-
-Here are some simple examples of how to use Tuzk:
 
 ### Basic Task
 
@@ -38,7 +37,7 @@ assert(task.stateIs('success'));
 assert(result === 5050);
 ```
 
-### Combine all tasks
+### Combine Tasks
 
 ```typescript
 import { Tuzk } from '@leawind/tuzk';
