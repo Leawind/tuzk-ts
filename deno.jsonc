@@ -19,7 +19,7 @@
 		]
 	},
 	"imports": {
-		"@leawind/delegate": "jsr:@leawind/delegate@^0.5.0",
+		"@leawind/delegate": "jsr:@leawind/delegate@^0.5.2",
 		"@leawind/inventory": "jsr:@leawind/inventory@^0.9.2",
 		"@std/assert": "jsr:@std/assert@^1.0.13",
 		"@/": "./src/"

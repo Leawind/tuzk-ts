@@ -41,7 +41,7 @@ import { type BaseActiveTuzk, type PromiseControl, type TuzkLike, type TuzkRunne
  * @template ActiveKeys Fields and methods that can be accessed in runner while it's active
  */
 export class Tuzk<R, ActiveKeys extends string = never> implements BaseActiveTuzk {
-	#_allowedFieldsTypeHolder!: ActiveKeys;
+	#_ActiveKeysTypeHolder!: ActiveKeys;
 
 	private readonly runner: TuzkRunner<Tuzk<R>>;
 
@@ -60,7 +60,7 @@ export class Tuzk<R, ActiveKeys extends string = never> implements BaseActiveTuz
 	 */
 	private shouldCancel: boolean = false;
 
-	private checkpointPromiseAction: PromiseControl | null = null;
+	private checkpointPromiseControl: PromiseControl | null = null;
 
 	/**
 	 * If this task was failed, this will be set.
@@ -72,8 +72,8 @@ export class Tuzk<R, ActiveKeys extends string = never> implements BaseActiveTuz
 	private result?: R;
 
 	// Delegates
-	public readonly onProgressUpdated: Delegate<number> = new Delegate<number>();
-	public readonly onStateUpdated: Delegate<TuzkState> = new Delegate<TuzkState>();
+	public readonly onProgressUpdated = new Delegate<number>();
+	public readonly onStateUpdated = new Delegate<[oldState: TuzkState, newState: TuzkState]>();
 
 	public constructor(runner: TuzkRunner<Tuzk<R>>) {
 		this.runner = runner;
@@ -97,8 +97,9 @@ export class Tuzk<R, ActiveKeys extends string = never> implements BaseActiveTuz
 
 	protected setState(state: TuzkState): void {
 		if (this.state !== state) {
+			const oldState = this.state;
 			this.state = state;
-			this.onStateUpdated.broadcast(this.state);
+			this.onStateUpdated.broadcast([oldState, this.state]);
 		}
 	}
 
@@ -111,30 +112,33 @@ export class Tuzk<R, ActiveKeys extends string = never> implements BaseActiveTuz
 	 *
 	 * @returns A promise that resolves when the task is finished.
 	 */
-	public async run(): Promise<R> {
-		if (this.isActive()) {
-			throw new InvalidStateError(this.state, 'pending or finished', 'run');
-		}
+	public run(): Promise<R> {
+		const promise = (async () => {
+			if (this.isActive()) {
+				throw new InvalidStateError(this.state, 'pending or finished', 'run');
+			}
 
-		try {
-			this.setState(TuzkState.Running);
+			try {
+				this.setState(TuzkState.Running);
 
-			// Wait for runner to finish
-			await this.checkpoint(0);
-			this.result = await this.runner(this);
-			this.setProgress(1);
+				// Wait for runner to finish
+				await this.checkpoint(0);
+				this.result = await this.runner(this);
+				this.setProgress(1);
 
-			this.setState(TuzkState.Success);
+				this.setState(TuzkState.Success);
 
-			return this.result;
-		} catch (error: unknown) {
-			this.error = error;
-			this.setState(error instanceof CancelledError ? TuzkState.Cancelled : TuzkState.Failed);
-			throw error;
-		} finally {
-			this.shouldCancel = false;
-			this.shouldPause = false;
-		}
+				return this.result;
+			} catch (error: unknown) {
+				this.error = error;
+				this.setState(error instanceof CancelledError ? TuzkState.Cancelled : TuzkState.Failed);
+				throw error;
+			} finally {
+				this.shouldCancel = false;
+				this.shouldPause = false;
+			}
+		})();
+		return promise;
 	}
 
 	/**
@@ -169,7 +173,7 @@ export class Tuzk<R, ActiveKeys extends string = never> implements BaseActiveTuz
 				this.setProgress(progress);
 			}
 
-			this.checkpointPromiseAction = null;
+			this.checkpointPromiseControl = null;
 
 			// Check cancel
 			if (this.shouldCancel) {
@@ -180,7 +184,7 @@ export class Tuzk<R, ActiveKeys extends string = never> implements BaseActiveTuz
 				// Check pause
 				if (this.shouldPause) {
 					this.setState(TuzkState.Paused);
-					this.checkpointPromiseAction = { resolve, reject };
+					this.checkpointPromiseControl = { resolve, reject };
 				} else {
 					this.setState(TuzkState.Running);
 					resolve();
@@ -202,11 +206,11 @@ export class Tuzk<R, ActiveKeys extends string = never> implements BaseActiveTuz
 			this.shouldPause = false;
 
 			if (this.state === TuzkState.Paused) {
-				if (this.checkpointPromiseAction === null) {
+				if (this.checkpointPromiseControl === null) {
 					throw new NeverError(`checkpointPromiseAction should not be null when paused`);
 				}
-				this.checkpointPromiseAction.resolve();
-				this.checkpointPromiseAction = null;
+				this.checkpointPromiseControl.resolve();
+				this.checkpointPromiseControl = null;
 				this.setState(TuzkState.Running);
 			}
 		} else {
@@ -220,8 +224,8 @@ export class Tuzk<R, ActiveKeys extends string = never> implements BaseActiveTuz
 			case TuzkState.Paused:
 			case TuzkState.Cancelled:
 				this.shouldCancel = true;
-				if (this.checkpointPromiseAction !== null) {
-					this.checkpointPromiseAction.reject(new CancelledError());
+				if (this.checkpointPromiseControl !== null) {
+					this.checkpointPromiseControl.reject(new CancelledError());
 				}
 				break;
 			default:
