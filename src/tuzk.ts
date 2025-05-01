@@ -1,7 +1,8 @@
 import { Delegate } from '@leawind/delegate';
+import { Deferred } from '@leawind/inventory/deferred';
 
 import { CancelledError, InvalidStateError, NeverError, TuzkError } from '@/errors.ts';
-import { type BaseActiveTuzk, type PromiseControl, type TuzkLike, type TuzkRunner, TuzkState } from '@/types.ts';
+import { type BaseActiveTuzk, type TuzkLike, type TuzkRunner, TuzkState } from '@/types.ts';
 
 /**
  * Tuzk is task that can be runed, paused, resumed, cancelled.
@@ -60,8 +61,6 @@ export class Tuzk<R, ActiveKeys extends string = never> implements BaseActiveTuz
 	 */
 	private shouldCancel: boolean = false;
 
-	private checkpointPromiseControl: PromiseControl | null = null;
-
 	/**
 	 * If this task was failed, this will be set.
 	 */
@@ -72,8 +71,8 @@ export class Tuzk<R, ActiveKeys extends string = never> implements BaseActiveTuz
 	private result?: R;
 
 	// Delegates
-	public readonly onProgressUpdated = new Delegate<number>();
-	public readonly onStateUpdated = new Delegate<[oldState: TuzkState, newState: TuzkState]>();
+	public readonly onProgressUpdated: Delegate<number> = new Delegate();
+	public readonly onStateUpdated: Delegate<[oldState: TuzkState, newState: TuzkState]> = new Delegate();
 
 	public constructor(runner: TuzkRunner<Tuzk<R>>) {
 		this.runner = runner;
@@ -96,11 +95,12 @@ export class Tuzk<R, ActiveKeys extends string = never> implements BaseActiveTuz
 	}
 
 	protected setState(state: TuzkState): void {
-		if (this.state !== state) {
-			const oldState = this.state;
-			this.state = state;
-			this.onStateUpdated.broadcast([oldState, this.state]);
+		if (this.state === state) {
+			return;
 		}
+		const oldState = this.state;
+		this.state = state;
+		this.onStateUpdated.broadcast([oldState, this.state]);
 	}
 
 	/**
@@ -156,66 +156,64 @@ export class Tuzk<R, ActiveKeys extends string = never> implements BaseActiveTuz
 
 	public setProgress(progress: number): void {
 		Tuzk.validateProgress(progress);
-		if (this.progress !== progress) {
-			this.progress = progress;
-			this.onProgressUpdated.broadcast(this.progress);
+		if (this.progress === progress) {
+			return;
 		}
+		this.progress = progress;
+		this.onProgressUpdated.broadcast(this.progress);
 	}
+
+	private checkpointDeferred: Deferred<void> | null = null;
 
 	public checkpoint(progress?: number): Promise<void> {
 		if (!this.stateIs(TuzkState.Running)) {
 			throw new InvalidStateError(this.state, 'active', 'invoke checkpoint()');
 		}
 
-		return new Promise((resolve, reject) => {
-			// Update progress
-			if (progress !== undefined) {
-				this.setProgress(progress);
-			}
+		if (progress !== undefined) {
+			this.setProgress(progress);
+		}
 
-			this.checkpointPromiseControl = null;
+		if (this.shouldCancel) {
+			this.setState(TuzkState.Cancelled);
+			throw new CancelledError();
+		}
 
-			// Check cancel
-			if (this.shouldCancel) {
-				this.setState(TuzkState.Cancelled);
-				// If do not reject or resolve, the Promise will stay in memory forever.
-				reject(new CancelledError());
-			} else {
-				// Check pause
-				if (this.shouldPause) {
-					this.setState(TuzkState.Paused);
-					this.checkpointPromiseControl = { resolve, reject };
-				} else {
-					this.setState(TuzkState.Running);
-					resolve();
-				}
-			}
-		});
+		if (this.shouldPause) {
+			this.setState(TuzkState.Paused);
+			this.checkpointDeferred = new Deferred();
+			return this.checkpointDeferred;
+		}
+
+		this.checkpointDeferred = null;
+		return Promise.resolve();
 	}
 
 	public pause(): void {
-		if (this.isActive()) {
-			this.shouldPause = true;
-		} else {
+		if (!this.isActive()) {
 			throw new InvalidStateError(this.state, 'active', 'pause');
 		}
+		this.shouldPause = true;
 	}
 
 	public resume(): void {
-		if (this.isActive()) {
-			this.shouldPause = false;
-
-			if (this.state === TuzkState.Paused) {
-				if (this.checkpointPromiseControl === null) {
-					throw new NeverError(`checkpointPromiseAction should not be null when paused`);
-				}
-				this.checkpointPromiseControl.resolve();
-				this.checkpointPromiseControl = null;
-				this.setState(TuzkState.Running);
-			}
-		} else {
+		if (!this.isActive()) {
 			throw new InvalidStateError(this.state, 'active', 'resume');
 		}
+
+		this.shouldPause = false;
+
+		if (this.state !== TuzkState.Paused) {
+			return;
+		}
+
+		if (this.checkpointDeferred === null) {
+			throw new NeverError(`checkpointDeferred should not be null when paused`);
+		}
+
+		this.checkpointDeferred.resolve();
+		this.checkpointDeferred = null;
+		this.setState(TuzkState.Running);
 	}
 
 	public cancel(): void {
@@ -224,9 +222,7 @@ export class Tuzk<R, ActiveKeys extends string = never> implements BaseActiveTuz
 			case TuzkState.Paused:
 			case TuzkState.Cancelled:
 				this.shouldCancel = true;
-				if (this.checkpointPromiseControl !== null) {
-					this.checkpointPromiseControl.reject(new CancelledError());
-				}
+				this.checkpointDeferred?.reject(new CancelledError());
 				break;
 			default:
 				throw new InvalidStateError(this.state, 'active or cancelled', 'cancel');
@@ -286,8 +282,7 @@ export class Tuzk<R, ActiveKeys extends string = never> implements BaseActiveTuz
 		}
 	}
 
-	public static from<R, F extends string>(runner: TuzkRunner<Tuzk<R, F>>): Tuzk<R, F>;
-	public static from<R, F extends string>(value: TuzkLike<R, F>): Tuzk<R, F>;
+	public static from<R, F extends string = never>(value: TuzkLike<R, F>): Tuzk<R, F>;
 	public static from<R, F extends string>(value: TuzkLike<R, F>): Tuzk<R, F> {
 		if (value instanceof Tuzk) {
 			return value;
@@ -321,10 +316,7 @@ export class Tuzk<R, ActiveKeys extends string = never> implements BaseActiveTuz
 	public static race<R>(tasks: TuzkLike<R>[]): Tuzk<R> {
 		const tuzks: Tuzk<R>[] = tasks.map((runner) => Tuzk.from(runner));
 		const promises: Promise<R>[] = tuzks.map((task) => task.run());
-		return new CompositeTuzk<R, R>(
-			tuzks,
-			() => Promise.race(promises),
-		);
+		return new CompositeTuzk<R, R>(tuzks, () => Promise.race(promises));
 	}
 }
 

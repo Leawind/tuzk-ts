@@ -137,11 +137,3 @@ export type TuzkRunner<T extends BaseTuzk> = (task: ActiveTuzk<T>) =>
  * @see Tuzk.from Conversion method
  */
 export type TuzkLike<R, F extends string = never> = TuzkRunner<Tuzk<R, F>> | Tuzk<R, F>;
-
-/**
- * Control interface for managing Promise resolution
- */
-export type PromiseControl = {
-	resolve: (value: void | PromiseLike<void>) => void;
-	reject: (reason?: unknown) => void;
-};

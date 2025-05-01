@@ -60,12 +60,8 @@ Deno.test('task resume when not paused', async () => {
 Deno.test('task should be cancelled', async () => {
 	const tuzk = new Tuzk(async (tuzk) => {
 		await tuzk.checkpoint(0.5);
-		console.log('Hello');
 		tuzk.cancel();
-		console.log('World!');
 		await tuzk.checkpoint(0.8);
-
-		console.log(`This should not be printed.`);
 	});
 
 	await assertRejects(async () => await tuzk.run(), errors.CancelledError);
@@ -79,7 +75,7 @@ Deno.test('task should be cancelled when paused', async () => {
 		tuzk.pause();
 		tuzk.cancel();
 		await tuzk.checkpoint(0.6);
-		console.log(`This should not be printed.`);
+		assert(false);
 	});
 
 	await assertRejects(async () => await tuzk.run(), errors.CancelledError);
@@ -226,7 +222,6 @@ Deno.test('sum', async () => {
 	const CHECK_POINT_INTERVAL = 10;
 
 	const tuzks: Tuzk<number>[] = [];
-	const encoder = new TextEncoder();
 
 	for (let i = 0; i < COUNT; i += BATCH_SIZE) {
 		const tuzk = new Tuzk<number>(async (tuzk) => {
@@ -240,14 +235,10 @@ Deno.test('sum', async () => {
 			}
 			return sum;
 		});
-		tuzk.onProgressUpdated.addListener(() => {
-			Deno.stdout.writeSync(encoder.encode(`\r${tuzk.getProgress()}    `));
-		});
 		tuzks.push(tuzk);
 	}
 
 	const results = await Tuzk.all(tuzks).run();
-	console.log();
 
 	assert(results.length === tuzks.length);
 	const sum = results.reduce((a, b) => a + b, 0);

@@ -17,11 +17,9 @@ Deno.test('extends Tuzk', async () => {
 	}
 
 	const task = new MyTask(async (task: ActiveTuzk<MyTask>) => {
-		console.log(`wait begin`);
 		await task.wait(50);
 		await task.checkpoint(0.5);
 		await task.wait(50);
-		console.log(`wait end`);
 	});
 
 	assert(task.stateIs('pending'));

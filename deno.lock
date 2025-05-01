@@ -4,7 +4,7 @@
     "jsr:@leawind/delegate@0.4": "0.4.1",
     "jsr:@leawind/delegate@~0.5.2": "0.5.2",
     "jsr:@leawind/inventory@*": "0.9.1",
-    "jsr:@leawind/inventory@~0.9.2": "0.9.2",
+    "jsr:@leawind/inventory@~0.10.1": "0.10.1",
     "jsr:@std/assert@*": "1.0.11",
     "jsr:@std/assert@^1.0.13": "1.0.13",
     "jsr:@std/internal@^1.0.5": "1.0.5",
@@ -21,8 +21,8 @@
     "@leawind/inventory@0.9.1": {
       "integrity": "7be62f04e526f741723158f39c22e3e762a57434001d5757310f12710f09b6bf"
     },
-    "@leawind/inventory@0.9.2": {
-      "integrity": "5b3c635e7d818916fb36c255b7f55701b0b8e42663f4d10884b953f026d2e914",
+    "@leawind/inventory@0.10.1": {
+      "integrity": "c9c8a14742c27bd2309332f110ed6fe263b85a72f4c3952f94e1708e6ab9633b",
       "dependencies": [
         "jsr:@leawind/delegate@0.4",
         "jsr:@std/path"
@@ -58,7 +58,7 @@
   "workspace": {
     "dependencies": [
       "jsr:@leawind/delegate@~0.5.2",
-      "jsr:@leawind/inventory@~0.9.2",
+      "jsr:@leawind/inventory@~0.10.1",
       "jsr:@std/assert@^1.0.13"
     ]
   }
