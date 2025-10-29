@@ -20,15 +20,19 @@ export class TuzkManager {
 	/**
 	 * Event triggered when a task is activated
 	 */
-	public readonly onTaskActivated = new Delegate<Tuzk<unknown, string>>('onTaskActivated');
+	public readonly onTaskActivated: Delegate<Tuzk<unknown, string>> = new Delegate<Tuzk<unknown, string>>(
+		'onTaskActivated',
+	);
 	/**
 	 * Event triggered when a task is finished
 	 */
-	public readonly onTaskFinished = new Delegate<Tuzk<unknown, string>>('onTaskFinished');
+	public readonly onTaskFinished: Delegate<Tuzk<unknown, string>> = new Delegate<Tuzk<unknown, string>>(
+		'onTaskFinished',
+	);
 	/**
 	 * Event triggered when all tasks are finished
 	 */
-	public readonly onAllTasksFinished = new Delegate<void>('onAllTasksFinished');
+	public readonly onAllTasksFinished: Delegate<void> = new Delegate<void>('onAllTasksFinished');
 
 	// Task Queues
 	// push / shift
@@ -57,7 +61,7 @@ export class TuzkManager {
 	 * Checks if all tasks are finished
 	 * @returns true if no pending or active tasks remain
 	 */
-	public isAllFinished() {
+	public isAllFinished(): boolean {
 		return this.pendingQueue.length === 0 && this.activated.size === 0;
 	}
 
@@ -226,7 +230,7 @@ export class TuzkManager {
 	 * Waits for all tasks to complete
 	 * @returns A promise that resolves when all tasks are finished
 	 */
-	public waitForAll() {
+	public waitForAll(): Promise<void> {
 		if (this.isAllFinished()) {
 			return Promise.resolve();
 		}
